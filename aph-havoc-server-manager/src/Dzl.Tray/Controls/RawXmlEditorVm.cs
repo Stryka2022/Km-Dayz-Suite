@@ -1,0 +1,187 @@
+using System.Globalization;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace Dzl.Tray.Controls;
+
+/// <summary>
+/// Shared scaffolding for the per-tab CE file editors (<see cref="GlobalsVm"/>, <see cref="EventsVm"/>,
+/// <see cref="RandomPresetsVm"/>, <see cref="SpawnableTypesVm"/>, <see cref="PlayerSpawnsVm"/>):
+/// raw-file-snapshot undo/redo over the service's <c>ReadRaw</c>/<c>WriteRaw</c>, the ✓/✗ status line,
+/// and the <see cref="HasFile"/>/<see cref="FileLabel"/> empty-state pair.
+/// <para>
+/// The base owns ONLY the raw-snapshot undo model + status. Domain commands, selection, and how detail
+/// edits persist stay in each VM — e.g. <see cref="EventsVm"/> persists detail fields per-commit (guarded
+/// by its own suspend flag), while <c>TypesEditorVm</c> deliberately uses a different entry-snapshot undo
+/// model and does not derive from this class. Do not merge those models into the base.
+/// </para>
+/// </summary>
+public abstract partial class RawXmlEditorVm : ObservableObject
+{
+    private readonly Func<string?> _readRaw;
+    private readonly Func<string, (bool ok, string msg)> _writeRaw;
+    private readonly Func<string?> _filePath;
+    private readonly string _missingHint;
+    private readonly Func<string, bool>? _confirm;
+
+    /// <param name="readRaw">Reads the current raw file text (null when absent/unresolvable).</param>
+    /// <param name="writeRaw">Overwrites the file verbatim (snapshots a backup first); returns ok + message.</param>
+    /// <param name="filePath">Resolves the edited file's path (null when no mission is active).</param>
+    /// <param name="missingHint">Shown as <see cref="FileLabel"/> when the file is unresolvable.</param>
+    /// <param name="confirm">Optional yes/no prompt. When set, <see cref="Reload"/> asks before discarding a
+    /// non-empty undo history (edits are already on disk, but the undo stack would be lost).</param>
+    protected RawXmlEditorVm(
+        Func<string?> readRaw,
+        Func<string, (bool ok, string msg)> writeRaw,
+        Func<string?> filePath,
+        string missingHint,
+        Func<string, bool>? confirm = null)
+    {
+        _readRaw = readRaw;
+        _writeRaw = writeRaw;
+        _filePath = filePath;
+        _missingHint = missingHint;
+        _confirm = confirm;
+    }
+
+    /// <summary>One-line feedback under the editor ("✓ saved …" / "✗ …").</summary>
+    [ObservableProperty] private string _status = "";
+
+    /// <summary>Set <see cref="Status"/> from a service result ("✓ msg" on success, "✗ msg" on
+    /// failure) and return ok so call sites can chain follow-up work.</summary>
+    protected bool Report((bool ok, string msg) result)
+    {
+        Status = (result.ok ? "✓ " : "✗ ") + result.msg;
+        return result.ok;
+    }
+
+    /// <summary>True when the file is resolvable (a mission is active) — gates the editor UI.</summary>
+    public bool HasFile => _filePath() is not null;
+
+    /// <summary>The resolved file path for the status/header (or a hint when unresolved).</summary>
+    public string FileLabel => _filePath() ?? _missingHint;
+
+    /// <summary>(Re)load from disk: clears undo/redo history, reloads the view keeping selection,
+    /// and re-evaluates <see cref="HasFile"/>/<see cref="FileLabel"/>.</summary>
+    public virtual void Reload()
+    {
+        // Reload re-reads disk and drops undo/redo. Edits already auto-saved, so no data is lost — but the
+        // undo stack would be, and the button is easy to fat-finger. Confirm when there's history to lose.
+        if ((_undo.Count > 0 || _redo.Count > 0) && _confirm is { } confirm &&
+            !confirm($"Reload re-reads this file from disk and discards the undo history " +
+                     $"({_undo.Count} step(s)). Your saved edits stay on disk. Continue?"))
+            return;
+
+        _loaded = true;
+        _undo.Clear();
+        _undoSel.Clear();
+        _redo.Clear();
+        _redoSel.Clear();
+        NotifyHistory();
+        InvalidateModelCache();
+        ReloadView();
+        OnPropertyChanged(nameof(HasFile));
+        OnPropertyChanged(nameof(FileLabel));
+    }
+
+    private bool _loaded;
+
+    /// <summary>Load the view the FIRST time the tab is shown; re-activating an already-loaded tab is a
+    /// no-op. This is the tab-activation entry point — it must never re-read the file or drop the in-progress
+    /// undo history just because the user switched tabs (which is what calling <see cref="Reload"/> on every
+    /// activation did, popping the discard-undo confirm). Use the explicit Reload button to force a fresh read.</summary>
+    public void EnsureLoaded()
+    {
+        if (_loaded) return;
+        Reload();   // first load: undo/redo empty, so no confirm; derived Reload overrides still run
+    }
+
+    /// <summary>Reload the VM's collections from disk keeping the current selection (and, where the
+    /// tab has one, the detail pane). Called by <see cref="Reload"/> and after undo/redo restores.</summary>
+    protected abstract void ReloadView();
+
+    /// <summary>Subclasses that cache the parsed model between reads override this to drop the cache.
+    /// The base calls it whenever the file is about to change or just changed (every <see cref="PushUndo"/>
+    /// — including seed-on-first-edit writes where ReadRaw is still null — every undo/redo restore, and
+    /// <see cref="Reload"/>), so a cached model can never go stale through edits made via this VM.
+    /// Default: no-op.</summary>
+    protected virtual void InvalidateModelCache() { }
+
+    private const int UndoCap = 50;
+    private readonly List<string> _undo = new();
+    private readonly List<string?> _undoSel = new();   // selection token captured alongside each undo snapshot
+    private readonly List<string> _redo = new();
+    private readonly List<string?> _redoSel = new();
+
+    public bool CanUndo => _undo.Count > 0;
+    public bool CanRedo => _redo.Count > 0;
+
+    /// <summary>Capture a stable identifier for the current selection (e.g. the selected row's name) so
+    /// undo/redo can restore it across a re-sort/rename. Default null = no selection tracking; override in a
+    /// subclass that has a master list.</summary>
+    protected virtual string? CaptureSelectionToken() => null;
+
+    /// <summary>Re-select the row identified by a token captured at undo/redo time, after <see cref="ReloadView"/>.
+    /// Default no-op; override to honor it (e.g. after a rename-undo where the prior name no longer exists).</summary>
+    protected virtual void RestoreSelectionToken(string? token) { }
+
+    private void NotifyHistory()
+    {
+        OnPropertyChanged(nameof(CanUndo));
+        OnPropertyChanged(nameof(CanRedo));
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>Snapshot the current file (and the current selection) before a mutation so it can be undone.
+    /// Call right before every service write. Also invalidates the parsed-model cache for the write that follows.</summary>
+    protected void PushUndo()
+    {
+        InvalidateModelCache();
+        var raw = _readRaw();
+        if (raw is null) return;
+        _undo.Add(raw);
+        _undoSel.Add(CaptureSelectionToken());
+        if (_undo.Count > UndoCap) { _undo.RemoveAt(0); _undoSel.RemoveAt(0); }
+        _redo.Clear();
+        _redoSel.Clear();
+        NotifyHistory();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUndo))]
+    private void Undo()
+    {
+        if (_undo.Count == 0) return;
+        var cur = _readRaw();
+        var prev = _undo[^1]; _undo.RemoveAt(_undo.Count - 1);
+        var prevSel = _undoSel[^1]; _undoSel.RemoveAt(_undoSel.Count - 1);
+        if (cur is not null) { _redo.Add(cur); _redoSel.Add(CaptureSelectionToken()); }
+        var (ok, msg) = _writeRaw(prev);
+        Status = ok ? "↶ undo" : "✗ " + msg;
+        InvalidateModelCache();
+        ReloadView();
+        RestoreSelectionToken(prevSel);   // reselect what was selected before the undone action
+        NotifyHistory();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRedo))]
+    private void Redo()
+    {
+        if (_redo.Count == 0) return;
+        var cur = _readRaw();
+        var next = _redo[^1]; _redo.RemoveAt(_redo.Count - 1);
+        var nextSel = _redoSel[^1]; _redoSel.RemoveAt(_redoSel.Count - 1);
+        if (cur is not null) { _undo.Add(cur); _undoSel.Add(CaptureSelectionToken()); }
+        var (ok, msg) = _writeRaw(next);
+        Status = ok ? "↷ redo" : "✗ " + msg;
+        InvalidateModelCache();
+        ReloadView();
+        RestoreSelectionToken(nextSel);
+        NotifyHistory();
+    }
+
+    /// <summary>Parse a CE chance: an invariant-culture float in 0..1.</summary>
+    protected static bool TryChance(string raw, out double value) =>
+        double.TryParse((raw ?? "").Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value)
+        && value is >= 0.0 and <= 1.0;
+}

@@ -1,0 +1,103 @@
+<UserControl x:Class="Dzl.Tray.Views.NotificationsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+  <Grid>
+    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+    <Grid Grid.Row="0" Margin="0,0,0,12">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+      <StackPanel>
+        <TextBlock Text="Notifications &amp; Updates" FontSize="22" FontWeight="SemiBold" />
+        <TextBlock Text="Per-instance Workshop automation, public keys and Discord activity reporting."
+                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+      </StackPanel>
+      <TextBlock x:Name="InstanceLabel" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold"
+                 Foreground="{DynamicResource KmOrangeBrush}" />
+    </Grid>
+
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+      <StackPanel Margin="0,0,14,0">
+        <ui:Card Padding="16" Margin="0,0,0,12">
+          <StackPanel>
+            <TextBlock Text="Steam Workshop automation" FontSize="17" FontWeight="SemiBold" />
+            <TextBlock Text="These switches apply only to the selected server instance. The first metadata scan records a baseline and does not create a false update alert."
+                       TextWrapping="Wrap" Margin="0,4,0,12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            <CheckBox x:Name="AutoUpdateMods" Content="Automatically deploy updates when an enabled Workshop mod changes" Margin="0,0,0,8" />
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+              <TextBlock Text="Deployment policy" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <ComboBox x:Name="UpdatePolicy" Width="300" SelectedIndex="0">
+                <ComboBoxItem Content="Wait until the server is empty" Tag="when-empty" />
+                <ComboBoxItem Content="15-minute in-game RCon warning" Tag="warn-15" />
+              </ComboBox>
+            </StackPanel>
+            <TextBlock Text="A running server must have a saved FTP &amp; RCon profile linked to this instance so KM Suite can count players and send warnings. Stopped instances deploy immediately."
+                       TextWrapping="Wrap" Margin="0,0,0,8" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            <CheckBox x:Name="AutoCopyKeys" Content="Detect and copy public .bikey files into this server's keys folder" Margin="0,0,0,10" />
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="Check every" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <TextBox x:Name="UpdateInterval" Width="80" VerticalContentAlignment="Center" />
+              <TextBlock Text="minutes (5–1440)" VerticalAlignment="Center" Margin="8,0,0,0"
+                         Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+          </StackPanel>
+        </ui:Card>
+
+        <ui:Card Padding="16" Margin="0,0,0,12">
+          <StackPanel>
+            <TextBlock Text="Named Discord webhooks" FontSize="17" FontWeight="SemiBold" />
+            <TextBlock Text="Add as many named destinations as this instance needs. URLs are encrypted with Windows DPAPI and never written into the server JSON or logs."
+                       TextWrapping="Wrap" Margin="0,4,0,12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            <CheckBox x:Name="DiscordEnabled" Content="Enable Discord notifications for this server instance" Margin="0,0,0,10" />
+            <Grid Margin="0,0,0,10">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="230" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+              <ListBox x:Name="WebhookList" Grid.Column="0" MinHeight="118" DisplayMemberPath="DisplayName"
+                       SelectionChanged="OnWebhookSelected" />
+              <StackPanel Grid.Column="2">
+                <Grid Margin="0,0,0,8">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                  <TextBox x:Name="WebhookName" Padding="8" ToolTip="Friendly name, for example Mod updates or Admin log" />
+                  <CheckBox x:Name="WebhookEnabled" Grid.Column="1" Content="Enabled" IsChecked="True"
+                            VerticalAlignment="Center" Margin="12,0,0,0" />
+                </Grid>
+                <PasswordBox x:Name="WebhookUrl" Padding="8" Margin="0,0,0,8"
+                             ToolTip="https://discord.com/api/webhooks/… — leave blank to keep a saved URL" />
+                <TextBlock Text="Events routed to this destination" FontSize="11" Margin="0,0,0,4"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <WrapPanel Margin="0,0,0,8">
+                  <CheckBox x:Name="TargetWorkshop" Content="Mod updates" Margin="0,0,12,4" />
+                  <CheckBox x:Name="TargetLifecycle" Content="Restarts/lifecycle" Margin="0,0,12,4" />
+                  <CheckBox x:Name="TargetAdmin" Content="Admin" Margin="0,0,12,4" />
+                  <CheckBox x:Name="TargetLogs" Content="Logs" Margin="0,0,12,4" />
+                  <CheckBox x:Name="TargetRemote" Content="FTP/RCon" Margin="0,0,12,4" />
+                </WrapPanel>
+                <StackPanel Orientation="Horizontal">
+                  <ui:Button Content="New destination" Margin="0,0,8,0" Click="OnNewWebhook" />
+                  <ui:Button Content="Save destination" Appearance="Primary" Margin="0,0,8,0" Click="OnSaveWebhook" />
+                  <ui:Button Content="Delete" Appearance="Danger" Click="OnClearWebhook" />
+                </StackPanel>
+              </StackPanel>
+            </Grid>
+            <TextBlock x:Name="WebhookStoredText" Margin="0,0,0,12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            <TextBlock Text="Instance-wide event switches" FontSize="11" Margin="0,0,0,5"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            <UniformGrid Columns="2">
+              <CheckBox x:Name="NotifyWorkshop" Content="Workshop mod updates and change log" Margin="0,0,12,8" />
+              <CheckBox x:Name="NotifyLifecycle" Content="Server starts, stops and restarts" Margin="0,0,12,8" />
+              <CheckBox x:Name="NotifyAdmin" Content="Admin actions and mod enablement" Margin="0,0,12,8" />
+              <CheckBox x:Name="NotifyLogs" Content="Errors and important log activity" Margin="0,0,12,8" />
+              <CheckBox x:Name="NotifyRemote" Content="FTP, RCon and remote file activity" Margin="0,0,12,8" />
+            </UniformGrid>
+          </StackPanel>
+        </ui:Card>
+
+        <StackPanel Orientation="Horizontal">
+          <ui:Button Content="Save for this instance" Appearance="Primary" Click="OnSave" Margin="0,0,8,0" />
+          <ui:Button Content="Send test" Click="OnTest" Margin="0,0,8,0" />
+          <ui:Button Content="Check all instances now" Click="OnCheckNow" />
+        </StackPanel>
+        <TextBlock x:Name="StatusText" Margin="0,10,0,20" TextWrapping="Wrap"
+                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

@@ -1,0 +1,95 @@
+<UserControl x:Class="Dzl.Tray.Controls.SteamAccountPanel"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+  <Border CornerRadius="8" Padding="10" Background="{DynamicResource KmPanelSoftBrush}"
+          BorderBrush="{DynamicResource KmLineBrush}" BorderThickness="1">
+    <Grid>
+      <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+      <Grid>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+        <Border Grid.Column="0" Width="34" Height="34" CornerRadius="17" Margin="0,0,10,0"
+                Background="{DynamicResource KmGreenTintBrush}" BorderBrush="{DynamicResource KmGreenBrush}" BorderThickness="1">
+          <ui:SymbolIcon Symbol="Person24" Foreground="{DynamicResource KmGreenBrush}" />
+        </Border>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+          <TextBlock Text="STEAM ACCOUNT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource KmOrangeBrush}" />
+          <TextBlock Text="{Binding SteamAccount}" FontWeight="SemiBold" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+          <ui:Button Content="Sign out" Click="OnSignOut"
+                     Visibility="{Binding SteamSignedIn, Converter={StaticResource BoolToVis}}" />
+          <ui:Button Content="Steam settings" Margin="8,0,0,0" Click="OnSettings" />
+        </StackPanel>
+      </Grid>
+
+      <Expander x:Name="LoginExpander" Grid.Row="1" Header="Sign in inside Server Manager"
+                Margin="0,8,0,0" IsExpanded="False"
+                Visibility="{Binding SteamSignedIn, Converter={StaticResource InverseBoolToVis}}">
+        <Grid Margin="0,10,0,2">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="0.9*" /><ColumnDefinition Width="1.1*" /></Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0" CornerRadius="7" Padding="12" Margin="0,0,8,0"
+                  Background="{DynamicResource KmInputBrush}" BorderBrush="{DynamicResource KmLineBrush}" BorderThickness="1">
+            <Grid>
+              <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+              <StackPanel Grid.Row="0">
+                <TextBlock Text="QR / MOBILE APPROVAL" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource KmGreenBrush}" />
+                <TextBlock Text="Scan with the Steam mobile app and approve the sign-in." FontSize="11"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+              </StackPanel>
+              <Grid Grid.Row="1" Margin="0,10,0,8" MinHeight="112">
+                <Border Width="112" Height="112" Background="White" CornerRadius="5" HorizontalAlignment="Left">
+                  <Image x:Name="QrImage" Margin="5" Stretch="Uniform" />
+                </Border>
+                <TextBlock x:Name="QrPlaceholder" Text="Select Start QR sign-in" Margin="128,0,0,0"
+                           VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" />
+              </Grid>
+              <StackPanel Grid.Row="2" Orientation="Horizontal">
+                <ui:Button x:Name="QrButton" Content="Start QR sign-in" Appearance="Primary" Click="OnStartQr" />
+                <TextBlock x:Name="QrStatus" Margin="10,5,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <Border Grid.Column="1" CornerRadius="7" Padding="12" Margin="8,0,0,0"
+                  Background="{DynamicResource KmInputBrush}" BorderBrush="{DynamicResource KmLineBrush}" BorderThickness="1">
+            <Grid>
+              <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+              <StackPanel Grid.Row="0">
+                <TextBlock Text="ACCOUNT SIGN-IN" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource KmGreenBrush}" />
+                <TextBlock Text="Your password is used for this sign-in only; only Steam session tokens are DPAPI protected."
+                           FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+              </StackPanel>
+              <Grid Grid.Row="1" Margin="0,10,0,8">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Margin="0,0,5,0">
+                  <TextBlock Text="Username" Style="{StaticResource FieldLabel}" />
+                  <ui:TextBox x:Name="UserBox" PlaceholderText="Steam account" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Margin="5,0,0,0">
+                  <TextBlock Text="Password" Style="{StaticResource FieldLabel}" />
+                  <PasswordBox x:Name="PassBox" Padding="9,6" />
+                </StackPanel>
+              </Grid>
+              <Border x:Name="GuardPanel" Grid.Row="2" Visibility="Collapsed" Padding="9" Margin="0,0,0,8"
+                      CornerRadius="6" Background="{DynamicResource KmOrangeTintBrush}"
+                      BorderBrush="{DynamicResource KmOrangeBrush}" BorderThickness="1">
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="120" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                  <TextBlock x:Name="GuardPrompt" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0" TextWrapping="Wrap" />
+                  <ui:TextBox x:Name="GuardBox" Grid.Column="1" PlaceholderText="Guard code" Margin="0,0,8,0" />
+                  <ui:Button Grid.Column="2" Content="Continue" Click="OnGuardOk" />
+                </Grid>
+              </Border>
+              <StackPanel Grid.Row="3" Orientation="Horizontal">
+                <ui:Button x:Name="SignInButton" Content="Sign in" Appearance="Primary" Click="OnCredentialSignIn" />
+                <TextBlock x:Name="PassStatus" Margin="10,5,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+              </StackPanel>
+            </Grid>
+          </Border>
+        </Grid>
+      </Expander>
+    </Grid>
+  </Border>
+</UserControl>

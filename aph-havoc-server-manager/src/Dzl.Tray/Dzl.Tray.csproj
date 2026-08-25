@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <StartupObject>Dzl.Tray.App</StartupObject>
+    <!-- App icon embedded in Dzl.Tray.exe: taskbar, alt-tab, Explorer, default window icon.
+         (The system-tray icon is a separate runtime-generated status dot — see TrayIcon.cs.) -->
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <!--
+      NU1701: H.NotifyIcon.Wpf 2.4.1 ships a WPF-compatible net4x asset that NuGet
+      restores against this net8.0-windows project. The package is functional on
+      net8 WPF (it is the recommended tray library for it), but NuGet emits NU1701
+      because the package itself does not advertise a net8 TFM. TreatWarningsAsErrors
+      (inherited from Directory.Build.props) would otherwise fail the restore.
+      Scoped to this project only.
+    -->
+    <NoWarn>$(NoWarn);NU1701</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ApplicationDefinition Remove="App.xaml" />
+    <Page Include="App.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Dzl.Core\Dzl.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="gong-wpf-dragdrop" Version="4.0.0" />
+    <PackageReference Include="H.NotifyIcon.Wpf" Version="2.4.1" />
+    <PackageReference Include="QRCoder" Version="1.8.0" />
+    <PackageReference Include="Velopack" Version="1.2.0" />
+    <PackageReference Include="WPF-UI" Version="4.3.0" />
+  </ItemGroup>
+
+</Project>

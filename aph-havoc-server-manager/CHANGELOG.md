@@ -1,0 +1,362 @@
+# Changelog
+
+All notable changes to dzl are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the app is versioned by
+git tag (`v*`), which the release workflow turns into a Velopack release.
+
+## [0.1.35] - 2026-07-08
+
+### Added
+- **DayZ Server path (normal mode).** Settings → Paths now has a **DayZ Server (normal mode)** field
+  (`dayz_server_path` in config) for the separate Steam dedicated-server install
+  (`...\DayZServer`). Normal mode launches `DayZServer_x64.exe` from there; debug mode still uses
+  `DayZDiag_x64.exe` from the game install. Blank falls back to the DayZ game folder. Auto-detect
+  and the setup wizard persist the path. CLI: `dzl config set dayz_server_path <path>`.
+
+### Changed
+- The env check for the dedicated server exe (`server_exe_normal`) only runs when
+  `dayz_server_path` is set — debug-only setups no longer get a permanent
+  "DayZServer_x64.exe not found" warning.
+
+## [0.1.34] - 2026-07-05
+
+### Added
+- **Offline sandbox instances.** Tick *Offline mode* when creating a server and you get a client-only
+  instance — no server, no port, no connect. The dashboard hides the whole server side and the client
+  **Start** button just boots the game locally. On any instance you can now also **Start (offline)**
+  (formerly "Menu only") alongside **Start (online)** — load your mods + mission without joining a
+  server. `dzl server new --offline` and the MCP `new_server` do the same.
+- **Offline mission patch (one click).** A stock DayZ mission doesn't spawn a character when you launch
+  it offline, so the game hangs on load. The dashboard's new **Offline mission** card detects this and
+  the **Patch init.c** button injects a tiny bootstrap (backing up the original) so you drop straight
+  into the world — it wraps the mission's own logic, so it works on any map and is a no-op for real
+  servers. A copy-code button is there as a hand-edit fallback.
+- **Dev tools (offline).** *My Mods → Dev tools* installs **DzlDevTools** into your workspace — an
+  in-game object editor, free camera, teleport and item spawner for offline testing, with rebindable
+  keys in the game's own Controls screen. It ships with the app (editable source + a ready-to-use
+  PBO); enable `@DzlDevTools` (client side) in a mod loadout to use it. (Adapted from Arkensor's
+  DayZ Community Offline Mode, CC BY-NC-SA 4.0.)
+- **Mod presets (loadouts)** — see 0.1.33 below (first release to ship it).
+
+### Changed
+- The **Servers** tab is now **Instances** (it covers offline sandboxes too), and starting a target
+  that's already running is refused instead of spawning a duplicate; the Start/Stop/Restart buttons
+  now enable/disable with the live state.
+
+## [0.1.33] - 2026-07-05
+
+### Added
+- **Mod presets (loadouts).** Save your current mod loadout under a name and switch between saved
+  loadouts in one click — or start a brand-new server with one already applied. A preset stores the
+  *enabled* mods (with their load order and server/client side); applying it turns those on in that
+  order and everything else off, taking effect on the next server start.
+  - **Mods page** gets a new "Mod presets" card: every saved preset with a content preview, an
+    *applied* badge showing which one the active server runs, one-click **Apply**, delete, and an
+    inline "save current loadout as…" box.
+  - **Server editor (Mods tab)** gets a preset combo that applies on selection, with a *(modified)*
+    hint when the loadout has drifted from the preset, plus save-as / update / delete.
+  - **New server** form (and `dzl server new --mods <preset>`) can apply a preset to the fresh
+    instance right away.
+  - **CLI**: `dzl modpreset` (list), `modpreset save|apply|rm <name>`. **MCP**: `list_mod_presets`,
+    `save_mod_preset`, `apply_mod_preset` — so Claude can switch loadouts too.
+  - Presets live as plain JSON in `<ProjectsRoot>\mod-presets\` and are shared by all servers;
+    names are case-insensitive.
+
+## [0.1.32] - 2026-06-30
+
+### Added
+- **Detach a log into its own window.** Each pane has a pop-out button that opens that log in a separate,
+  resizable window — handy for watching the RPT on a second monitor while you work in the main app. The main
+  page greys the pane with a Bring-back placeholder while it's detached; closing the window re-attaches it. The
+  filter, search and auto-scroll stay in sync between the two views (they share the same live data). Any or all
+  panes can be detached at once, in every view mode.
+
+## [0.1.31] - 2026-06-30
+
+### Added
+- **Syntax-coloured log viewer (AvalonEdit).** The log panes now render through a real code/log editor:
+  per-token colouring (timestamp, subsystem, `(E)`/`(W)` severity, quoted strings, ADM `pos=<…>`), faint
+  red/amber tint on error/warning lines, **gutter line numbers**, and **search-match highlighting** in the
+  visible text. Stack-trace file references (`scripts/…/foo.c : 339`, absolute `…\init.c : 97`) are
+  underlined and **clickable — they open the file at that line in your configured editor** (absolute paths
+  always; relative script paths resolved best-effort against the projects root and the mounted P: drive).
+- **Fifth log pane: Console.** `server_console.log` is now tailed alongside script/RPT/ADM/client — the
+  cleanest startup + Central Economy overview (`SUCCESS:`, `[CE][Hive] :: …`, mission/map load). In Grid
+  view it spans the full width on its own row.
+
+## [0.1.30] - 2026-06-30
+
+### Added
+- **The Logs viewer got search, quick filters and an auto-scroll toggle.** Every log pane (script/RPT/ADM/client,
+  in any view mode) now has its own toolbar: a **search box** (live, case-insensitive substring), **quick-filter
+  chips** — All · Errors · Warnings · Connections · Mods/Success — that narrow the pane to just those lines, an
+  **Auto-scroll** toggle (turn it off to read older lines without being yanked to the tail), and a new **Open in
+  editor** button that opens the full log file in your configured editor. A footer shows "Showing N of M lines"
+  so it's clear how much the filter/search is hiding. Filtering is in-memory over the live tail; the underlying
+  file is never touched.
+
+## [0.1.29] - 2026-06-28
+
+### Fixed
+- **A partial pack build no longer wipes the other PBOs.** Building a subset of a pack's inner mods (e.g. just
+  `world`) now **swaps only those PBOs** and keeps the rest in `@<pack>\Addons` — changing one file no longer
+  means repacking (and risking) every addon. Building **all** of them still does a clean full rebuild that also
+  clears any stale PBO.
+
+## [0.1.28] - 2026-06-28
+
+### Changed
+- **Tools "Pack PBO" is now a full build console.** It matches a My Mods build, just on a manually-picked
+  source/output folder: a **Preflight** button (findings + counts), **binarize**, **sign with a configured key**
+  (dropdown from Settings → Signing, not a manual key-path field anymore), and **"build anyway"** to pack past
+  preflight errors. Same pipeline (preflight → Binarize → CfgConvert → in-process pack → sign).
+
+## [0.1.27] - 2026-06-28
+
+### Changed
+- **Tools "Pack PBO" now uses the in-process build engine.** Packing a folder no longer goes through
+  AddonBuilder — it uses the same reliable in-process PBO writer as the My Mods builds. A new **binarize**
+  toggle: off packs the folder as-is (no external tools or P: needed); on runs the full build (binarize models +
+  `config.cpp`→`config.bin`, needs the P: work drive mounted). Set a key path to sign. The Pack button is always
+  available now (no AddonBuilder dependency).
+
+## [0.1.26] - 2026-06-28
+
+### Added
+- **My Mods detects broken links.** A mod imported as a link whose source folder was later moved or deleted no
+  longer silently disappears (leaving dead junctions behind in `mods\` and on `P:`). It now shows as an amber
+  **"broken link"** card with two fixes: **Re-link…** (point it at the new source folder) or **Remove** (clear
+  the leftover junctions). Dangling junctions are also reliably detected and removable now (previously a
+  reparse-point whose target was gone slipped past the link checks).
+
+## [0.1.25] - 2026-06-28
+
+### Fixed
+- **Deleting a link-imported mod/pack can no longer touch the external source.** A project imported as a link
+  (junction) now shows **"Remove from projects (keep source)"** instead of "Delete…", and removing it drops only
+  the junction — the original source folder is left completely untouched. The force-delete is now reparse-point
+  safe too, so it can never recurse into a junction's target and wipe files behind it.
+
+## [0.1.24] - 2026-06-28
+
+### Fixed
+- **My Mods pack header spacing.** The ⋯ actions button no longer sits jammed against the group's expander
+  chevron, and the pack header has a little vertical breathing room (matching the standalone-mod cards).
+
+## [0.1.23] - 2026-06-28
+
+### Added
+- **Import a mod by link or copy.** The Add → Import dialog now has a "Copy into projects" option. Off
+  (default) keeps the current behaviour — links the source in place via a junction, so it stays where it is and
+  edits affect the original. On copies the whole folder into your projects as an independent copy you can change
+  without touching the source.
+
+## [0.1.22] - 2026-06-28
+
+### Fixed
+- **My Mods no longer breaks when a mod folder is deleted or moved.** A `mods\` entry that couldn't be read —
+  a dead junction whose target was moved/deleted, or a folder that vanished mid-scan — made project discovery
+  throw *"Could not find a part of the path"*, which wiped the **whole** My Mods list and popped an error.
+  Such entries are now skipped, so the rest of your mods still load.
+
+## [0.1.21] - 2026-06-28
+
+### Added
+- **Pack groups get the same ⋯ actions menu as standalone mods.** A pack's header on My Mods now has the
+  "More actions" dropdown (Open folder, Open in editor, Link/Unlink P:, Delete pack) and the Open-on-GitHub
+  button — matching standalone mods, instead of just Build / Git / Open-folder.
+
+## [0.1.20] - 2026-06-28
+
+### Added
+- **Dev server defaults to `-limitFPS=120`.** The debug server params now include `-limitFPS=120`, which caps
+  server FPS to cut CPU usage on a low-population dev server. Applies to **newly created** configs/instances;
+  existing ones keep their current params (add it yourself if you want it). Normal/production mode is unchanged
+  (uncapped).
+
+## [0.1.19] - 2026-06-28
+
+### Changed
+- **My Mods pack groups start collapsed by default.** Packs now begin collapsed; only the ones you explicitly
+  expand are remembered (still persisted across refreshes and restarts). Keeps the My Mods list compact when you
+  have many packs.
+
+## [0.1.18] - 2026-06-28
+
+### Added
+- **My Mods remembers collapsed pack groups.** Collapsing a pack's group now sticks — across list refreshes
+  (build / link / import / delete) and app restarts — instead of snapping back open every time the list
+  rebuilds. Stored in a small `ui-state.json` next to the config (separate from presets, so it's pure view
+  state).
+
+## [0.1.17] - 2026-06-28
+
+### Fixed
+- **Game-data extraction now unpacks vanilla only — not your mods.** The extractor enumerated PBOs recursively
+  under the DayZ install and followed junctions into `!Workshop\@<mod>` (and loose `@<mod>`) folders, so a
+  machine with many subscribed mods tried to unpack **thousands** of mod PBOs (e.g. 3600+) into `P:`. It now
+  skips any `@`- or `!`-prefixed folder and extracts only the game's own data (`Addons`, `sakhal\Addons`, `dta`,
+  …) — back to roughly the real vanilla count.
+
+## [0.1.16] - 2026-06-28
+
+### Fixed
+- **Pack inner mods now get a unique PBO prefix.** A pack child with no `$PBOPREFIX$` of its own was packed
+  with just its folder name as the prefix (e.g. a terrain child → `prefix=world`). That collides with vanilla
+  and other mods and breaks loading — a map's `worldName` (`<pack>\world\<map>.wrp`) couldn't be found
+  ("Cannot load world"). It now falls back to the unique pack-relative path `<pack>\<child>` (how pboProject
+  derives it from the folder layout), so terrains and assets resolve. Children that already ship a `$PBOPREFIX$`
+  are unchanged.
+
+## [0.1.15] - 2026-06-28
+
+### Added
+- **Reliable in-app game-data extraction.** A new **Extract game data** action (Tools page + the first-run
+  wizard) unpacks every vanilla PBO to the `P:` drive directly via DayZ Tools' `BankRev`, instead of going
+  through `WorkDrive.exe`'s built-in extract. It's **incremental** — a manifest skips PBOs already extracted at
+  their current version, and a **full re-extract** toggle forces everything — and it shows per-PBO progress.
+  This gives dzl a controllable, scriptable extraction that doesn't depend on the WorkDrive GUI.
+
+## [0.1.14] - 2026-06-28
+
+### Added
+- **"Build anyway" on the pack build console.** Preflight still runs and reports its findings, but its
+  errors no longer block the build. This is for map/world mods that reference vanilla assets which aren't
+  extracted on your `P:` drive (e.g. an `.emat` terrain/ocean material the engine resolves at runtime) — the
+  resulting "missing referenced file" errors are false positives, and you can now build past them without
+  turning off preflight globally. (`BuildService.Build`/`BuildPack` gained an `ignorePreflightErrors` option.)
+
+## [0.1.13] - 2026-06-27
+
+### Changed
+- **Builds pack the PBO in-process — no more FileBank/AddonBuilder.** A new built-in PBO writer assembles the
+  `.pbo` directly (stored/uncompressed, with the `$PBOPREFIX$` and a SHA-1 trailer), so a build never depends on
+  an external packer or the DayZ file server for packing. This removes a whole class of hangs and naming quirks
+  and makes packing deterministic.
+
+### Fixed
+- **Binarize now gets the project-drive context it needs — no more hangs, no more "Material not loaded".**
+  `binarize.exe` is invoked with `-binpath`/`-addon` pointed at the mounted `P:\` work drive (plus `-always`,
+  `-silent`, `-maxProcesses`, `-textures`) and run with its working directory set there. With that context it
+  resolves vanilla **and** the mod's own materials (so a vehicle/model mod no longer floods the log with
+  "Material not loaded …rvmat"), runs roughly an order of magnitude faster, and accepts staging that lives off
+  the work drive — which is what made model mods (e.g. a Land Rover) appear to never finish.
+- **Build doesn't run binarize when there's nothing to binarize.** A mod with no MLOD models (config/script-only,
+  or only already-binarized ODOL models) skips Binarize entirely instead of churning for ~35s per mod — so a
+  pack of mostly-config mods builds in seconds and the log stays clean.
+- **Captured process runs can't deadlock on a lingering child.** `binarize.exe` spawns a persistent file-server
+  child that inherits the output pipe; the process runner now waits on the process handle (not the streams' EOF)
+  with a bounded drain, so a build no longer hangs after binarize itself has finished.
+
+## [0.1.12] - 2026-06-27
+
+### Changed
+- **New build engine (no AddonBuilder).** Mod and pack builds now run a direct DayZ-Tools pipeline —
+  `binarize.exe` → `CfgConvert` (config.cpp→config.bin) → `FileBank.exe` (pack) → `DSSignFile` (sign) —
+  giving per-file control AddonBuilder didn't expose.
+
+### Fixed
+- **Already-binarized (ODOL) p3d no longer crash the build.** Such models are excluded from Binarize and
+  shipped unchanged (verified byte-identical in the output PBO), while the rest of the mod still binarizes
+  normally — so a mod/pack containing pre-binarized models builds instead of dying with an access
+  violation (0xC0000005). AddonBuilder's `-include` cannot do this (confirmed by testing).
+
+## [0.1.11] - 2026-06-27
+
+### Fixed
+- **Pack build console — scrollable mod list.** The "Mods to build" list is now height-capped with
+  a scrollbar, so a pack with many mods no longer pushes the options and build log off-screen.
+
+## [0.1.10] - 2026-06-27
+
+### Changed
+- **Pack build console — tidier mod list.** "Mods to build" is now a proper selectable list: each
+  mod is a row with a checkbox, name and a marker chip (`config.cpp` / `$PBOPREFIX$`), with a
+  "select all" toggle + a selected count, and the build options (binarize / sign / key) separated
+  below a divider.
+
+## [0.1.9] - 2026-06-27
+
+### Added
+- **Mod packs on My Mods.** A folder whose subfolders are each a mod (own `config.cpp` /
+  `$PBOPREFIX$`) is auto-detected as a *pack* and shown as an expandable group (named after the
+  folder, with git at the pack level) instead of being invisible. One level of nesting.
+- **"Build pack…".** Build a pack's inner mods into one `@<pack>` — a PBO per mod under `Addons\`
+  plus a shared `keys\`, published atomically and registered as a single loadable mod. The console
+  lets you pick which inner mods to build (all by default), choose binarize/sign + key, and shows
+  per-mod preflight tabs with the same findings UX as the single-mod build (severity badges,
+  clickable `file:line`).
+
+### Fixed
+- **Wrong PBO prefix when building a pack child.** AddonBuilder derived the prefix from the nested
+  source's leaf folder; the child's own `$PBOPREFIX$` is now passed explicitly (`-prefix=`), so
+  assets resolve at the right root.
+- **Preflight false-positive on multi-segment `$PBOPREFIX$`.** `cfgmods-folder-unreferenced` (and
+  include/path resolution generally) only stripped the first prefix segment, so a mod with a prefix
+  like `Mod\Core` was wrongly flagged. References that open with the whole prefix now resolve.
+
+## [0.1.8] - 2026-06-27
+
+### Added
+- **Search box on the mod-selection lists.** The server editor's Mods tab now has a filter
+  (shared with the main Mods page), and the My Mods projects list filters by name / path.
+
+### Fixed
+- **The "claude mcp add" command on the MCP page pointed at a missing path on the installed
+  app.** The MCP server ships isolated in an `mcp\` subfolder as a self-contained
+  `dzl-mcp.exe` (its .NET 10 deps would poison the net8 Tray if merged into the root). The
+  command now resolves `mcp\dzl-mcp.exe` instead of a non-existent `Dzl.Mcp.dll` in the root.
+
+## [0.1.7] - 2026-06-27
+
+### Fixed
+- **Per-instance `serverDZ.cfg` is now actually honored.** The server is launched with
+  an absolute `-config` path (accepted by DayZ 1.29). The previous approach relied on the
+  working directory, but the engine forces `$currentdir` to the exe folder — so every
+  instance silently loaded the DayZ *install's* `serverDZ.cfg` instead of its own.
+- **Per-instance mission / Central Economy is now honored.** A server's `serverDZ.cfg`
+  mission `template` is repointed at the instance's own `mpmissions` (absolute path) when
+  the instance is created and on every launch, so the engine loads the instance's mission
+  — the one dzl's CE editor manages — not the install's.
+- **New servers no longer inherit a previous instance's mission.** Creating an instance
+  repoints its `Mission` at its own folder instead of copying the active preset's value
+  (which could be an absolute path to a different instance).
+- **Folder / file pickers open where the field points.** Across the server editor,
+  settings, tools, add-mod, module settings and key import, the "browse" buttons now start
+  in the directory the field already contains (the parent directory for file fields),
+  falling back to the projects root / DayZ folder — instead of always jumping to the DayZ
+  install.
+
+### Added
+- **Dashboard "Mission source" card.** Shows which `mpmissions` folder the server will
+  actually load (instance / install / missing), read from `serverDZ.cfg`, with a one-click
+  "Fix" that repoints the template at the instance's own mission.
+
+[0.1.35]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.35
+[0.1.34]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.34
+[0.1.32]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.32
+[0.1.31]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.31
+[0.1.30]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.30
+[0.1.29]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.29
+[0.1.28]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.28
+[0.1.27]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.27
+[0.1.26]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.26
+[0.1.25]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.25
+[0.1.24]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.24
+[0.1.23]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.23
+[0.1.22]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.22
+[0.1.21]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.21
+[0.1.20]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.20
+[0.1.19]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.19
+[0.1.18]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.18
+[0.1.17]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.17
+[0.1.16]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.16
+[0.1.15]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.15
+[0.1.14]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.14
+[0.1.13]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.13
+[0.1.12]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.12
+[0.1.11]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.11
+[0.1.10]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.10
+[0.1.9]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.9
+[0.1.8]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.8
+[0.1.7]: https://github.com/Borcioo/dayz-labs/releases/tag/v0.1.7

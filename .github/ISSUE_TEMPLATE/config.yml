@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/Stryka2022/Km-Dayz-Suite#readme
+    about: Read the APH Havoc documentation before filing an issue.
+  - name: Questions & ideas (Discussions)
+    url: https://github.com/Stryka2022/Km-Dayz-Suite/discussions
+    about: For usage questions and open-ended ideas, start a discussion instead.

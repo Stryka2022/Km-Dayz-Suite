@@ -1,0 +1,2 @@
+# The prebuilt PBO is binary — never touch line endings.
+*.pbo binary

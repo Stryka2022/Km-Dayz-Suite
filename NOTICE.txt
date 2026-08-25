@@ -1,0 +1,72 @@
+APH Havoc Server Manager - GPL Public Edition Notice
+
+Public project and modified source:
+https://github.com/Stryka2022/Km-Dayz-Suite
+
+APH Havoc Server Manager is distributed for free public use under the GNU General
+Public License version 3. The complete licence is supplied beside this notice and
+at https://github.com/Stryka2022/Km-Dayz-Suite/blob/main/LICENSE.
+
+Original upstream attribution (retained as required by GNU GPL v3):
+
+DayZ Labs (Dzl.Tray, Dzl.Cli, Dzl.Core and Dzl.Mcp)
+Project: https://github.com/Borcioo/dayz-labs
+Copyright (c) 2026 Borcioo (DayZ Labs)
+
+The upstream work is licensed under the GNU General Public License version 3.
+The complete local licence is supplied beside this notice and at:
+source\aph-havoc-server-manager\LICENSE
+
+Full corresponding source for the bundled modified companion version is supplied at:
+source\aph-havoc-server-manager
+
+KM DayZ Suite starts the APH Havoc Server Manager executable as a separate process
+and embeds that process's
+window in the KM Suite Server Manager section using the Windows child-window API.
+APH Havoc Server Manager remains a separate GPL-licensed work in an aggregate
+distribution. No companion assembly is referenced, linked, merged, obfuscated, or loaded into the
+proprietary KMSuite.exe process. The APH Havoc GPL companion is not covered by KM DayZ Suite's
+proprietary licence or RASP branding, and the KM licence does not restrict users'
+GPL rights in it.
+
+Modification notice (GNU GPL v3 section 5):
+Modified by the KM DayZ Suite integration through 25 August 2026 to add an explicit
+KM_SUITE_EMBEDDED presentation mode, embedded-process lifecycle behaviour, a
+KM-coloured left-rail Server Manager layout, integrated Workshop and Steam sign-in,
+integrated Economy tools, FTP/explicit-FTPS remote file management with local
+recovery copies, BattlEye RCon, APH Havoc Survival presentation branding, and KM
+host-to-companion page navigation. Embedded mode removes the companion's duplicate
+navigation rail so KM's main left rail is the single visible Server Manager navigation.
+The embedded host and companion resize loops were changed to update only on real size
+changes, removing repeated WPF frame invalidation and the white transition surface.
+Workshop content was widened for embedded use, and FTP listings now detect and display
+Windows or Linux/Unix remote-server platforms. A native Linux x64 headless CLI build is
+distributed separately with the same GPL notice and corresponding source; the proprietary
+WPF desktop application remains a Windows program. Per-instance Workshop targeting,
+automatic Workshop metadata checks, public-key refresh, encrypted per-instance Discord
+webhooks, selectable event categories, and throttled server activity/log notifications were
+added for KM Suite Server Manager.
+Named, independently enabled Discord webhook destinations, encrypted multi-webhook
+storage with migration from the earlier single-webhook format, linked per-instance
+RCon profiles, persistent Workshop update queues, player-count-aware empty-server
+deployment, completed SteamCMD update waits, automatic key refresh, and 15/10/5/1
+minute in-game update warnings naming the changed mods were added. Local servers
+managed by the active companion instance are stopped and restarted around a due
+deployment. Public-facing product names, window titles, setup copy, Workshop labels,
+update/source/licence links, CLI descriptions and notifications were rebranded as
+APH Havoc Server Manager. The obsolete upstream website button was removed and public
+links now target https://github.com/Stryka2022/Km-Dayz-Suite. The companion version
+for these changes is 0.1.35-km.6.
+Original upstream authorship, copyright and GPL licensing are retained in this legal
+notice and the corresponding source history. Public distribution and modifications
+are presented under the APH Havoc name without claiming ownership of upstream work.
+
+The assets\DzlDevTools payload is a separate work licensed under Creative Commons
+Attribution-NonCommercial-ShareAlike 4.0. Copyright Paul-Eric Lange (Arkensor)
+2018. It is supplied unmodified and separately identified so the My Mods -> Dev
+tools function remains available. Its full licence is supplied at:
+LICENSE-DZLDEVTOOLS-CC-BY-NC-SA-4.0.txt
+and with the asset at app\assets\DzlDevTools\LICENSE. The payload may be used or
+shared only under that licence, including its NonCommercial and ShareAlike terms.
+
+This software is provided without warranty; see the GNU GPL for details.

@@ -1,0 +1,16 @@
+bin/
+obj/
+*.user
+.vs/
+[Tt]est[Rr]esults/
+# Installer build output (Velopack)
+artifacts/
+*.nupkg
+.dzl-procs.json
+config.json
+presets/
+
+# Astro docs site (web/)
+web/node_modules/
+web/dist/
+web/.astro/

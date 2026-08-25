@@ -1,0 +1,71 @@
+<UserControl x:Class="Dzl.Tray.Views.AboutView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel MaxWidth="640" HorizontalAlignment="Left">
+
+      <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+        <ui:SymbolIcon Symbol="Gauge24" FontSize="30" VerticalAlignment="Center" Margin="0,0,12,0" />
+        <StackPanel VerticalAlignment="Center">
+          <TextBlock Text="APH Havoc Server Manager" FontSize="24" FontWeight="SemiBold" />
+          <TextBlock x:Name="VersionText" FontSize="13"
+                     Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+      </StackPanel>
+
+      <TextBlock TextWrapping="Wrap" Margin="0,12,0,16"
+                 Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                 Text="APH Havoc Server Manager is the public server-management workspace supplied with KM Suite: server &amp; client lifecycle, ordered mods, integrated Steam Workshop and sign-in, FTP/FTPS remote files, BattlEye RCon, log diagnosis, a validating build pipeline, setup checks, tools, and Central Economy editors." />
+
+      <!-- Updates -->
+      <Border CornerRadius="8" BorderThickness="1" Padding="14" Margin="0,0,0,14"
+              BorderBrush="{DynamicResource ControlElevationBorderBrush}"
+              Background="{DynamicResource ControlFillColorDefaultBrush}">
+        <StackPanel>
+          <TextBlock Text="Updates" FontWeight="SemiBold" Margin="0,0,0,6" />
+          <TextBlock TextWrapping="Wrap" FontSize="12" Margin="0,0,0,8"
+                     Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                     Text="APH Havoc Server Manager is updated together with KM Suite. Public source, releases and licence information are maintained in the KM DayZ Suite GitHub repository." />
+          <StackPanel Orientation="Horizontal">
+            <ui:Button x:Name="CheckUpdatesBtn" Content="Check for updates"
+                       Icon="{ui:SymbolIcon ArrowClockwise24}" Click="OnCheckUpdates" />
+            <TextBlock x:Name="UpdateStatus" VerticalAlignment="Center" Margin="12,0,0,0"
+                       FontSize="13" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Links -->
+      <TextBlock Text="Links" FontWeight="SemiBold" Margin="0,0,0,8" />
+      <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+        <ui:Button Content="APH Havoc GitHub" Icon="{ui:SymbolIcon Code24}" Margin="0,0,8,0"
+                   Tag="https://github.com/Stryka2022/Km-Dayz-Suite" Click="OnOpenLink" />
+        <ui:Button Content="Source &amp; licence" Icon="{ui:SymbolIcon Document24}" Margin="0,0,8,0"
+                   Tag="https://github.com/Stryka2022/Km-Dayz-Suite" Click="OnOpenLink" />
+      </StackPanel>
+
+      <!-- License -->
+      <TextBlock Text="License" FontWeight="SemiBold" Margin="0,0,0,6" />
+      <TextBlock TextWrapping="Wrap" FontSize="13"
+                 Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+        <Run Text="APH Havoc Server Manager is free public software licensed under the GNU General Public License v3.0." />
+        <Hyperlink Tag="https://github.com/Stryka2022/Km-Dayz-Suite/blob/main/LICENSE" Click="OnOpenHyperlink">
+          <Run Text="View the license" />
+        </Hyperlink><Run Text="." />
+      </TextBlock>
+      <TextBlock Text="APH Havoc public edition and KM integration © 2026 APH Havoc Survival." FontSize="12" Margin="0,4,0,0"
+                 Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+      <TextBlock Text="Modified 25 August 2026 and distributed as APH Havoc Server Manager under GPL v3. Matching modified source is supplied with KM Suite and published on the APH Havoc GitHub repository. Original upstream copyright and attribution are preserved in Legal Notices as required by GPL v3."
+                 TextWrapping="Wrap" FontSize="12" Margin="0,4,0,0"
+                 Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+
+      <!-- Disclaimer -->
+      <TextBlock Text="Disclaimer" FontWeight="SemiBold" Margin="0,16,0,6" />
+      <TextBlock TextWrapping="Wrap" FontSize="12"
+                 Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                 Text="APH Havoc Server Manager is an unofficial, community-made tool, not affiliated with or authorized by Bohemia Interactive a.s. Bohemia Interactive, ARMA, DAYZ, ENFUSION and all associated logos and designs are trademarks or registered trademarks of Bohemia Interactive a.s." />
+
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

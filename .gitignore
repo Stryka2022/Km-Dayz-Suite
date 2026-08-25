@@ -1,0 +1,14 @@
+**/bin/
+**/obj/
+**/publish/
+**/target/
+**/node_modules/
+**/artifacts/
+.vs/
+.idea/
+*.user
+*.suo
+*.pdb
+*.zip
+*.tar.gz
+*.exe

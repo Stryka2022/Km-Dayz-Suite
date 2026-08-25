@@ -1,0 +1,418 @@
+<UserControl x:Class="Dzl.Tray.Controls.SpawnableTypesEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:ctl="clr-namespace:Dzl.Tray.Controls"
+             xmlns:help="clr-namespace:Dzl.Tray.Help"
+             xmlns:conv="clr-namespace:Dzl.Tray"
+             x:Name="Root">
+  <!-- DataContext = SpawnableTypesVm. Edits cfgspawnabletypes.xml: master list of types (left) + a detail
+       pane for the selected type (right) with hoarder/damage and cargo/attachments blocks. Each block is
+       preset-based (a name from cfgrandompresets.xml) or chance-based (chance + inline items). Every edit
+       routes through the VM → SpawnableTypesService (snapshot + write, never throws). Per-tab undo/redo
+       snapshots the whole file. A UserControl does NOT inherit the host window's resources at realize time —
+       declare local styles here; only DynamicResource theme brushes (resolved late) are safe to reference. -->
+  <UserControl.Resources>
+    <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    <conv:WidthToColumnsConverter x:Key="WidthToColumns" />
+    <conv:ZeroCountToVisibilityConverter x:Key="ZeroToVis" />
+    <Style x:Key="StSectionHeader" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+    </Style>
+    <Style x:Key="StHint" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+    </Style>
+    <Style x:Key="StBlockLabel" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+    </Style>
+
+    <!-- One cargo/attachments block: a card showing EITHER a preset combo (preset-based) OR a chance box
+         plus an items grid (chance-based). DataContext = SpawnBlockVm. Items live in a nested DataGrid. -->
+    <DataTemplate x:Key="BlockTemplate">
+      <Border CornerRadius="6" Padding="8" Margin="0,0,0,6"
+              Background="{DynamicResource ControlFillColorSecondaryBrush}"
+              BorderBrush="{DynamicResource ControlElevationBorderBrush}" BorderThickness="1">
+        <StackPanel>
+          <!-- Row 1: block-type pill + info + remove (type is fixed at add time — no in-block switch) -->
+          <Grid Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" CornerRadius="4" Padding="8,2" VerticalAlignment="Center"
+                    Background="{DynamicResource ControlFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource ControlElevationBorderBrush}" BorderThickness="1">
+              <TextBlock Text="{Binding BlockKindLabel}" FontSize="12" FontWeight="SemiBold"
+                         Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+            </Border>
+            <ui:SymbolIcon Grid.Column="1" Symbol="Info24" FontSize="16" Margin="6,0,0,0" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                           ToolTip="Preset block → points at a reusable loot table from cfgrandompresets.xml.&#x0a;Chance block → an inline spawn chance with its own item list." />
+            <ui:Button Grid.Column="3" Content="Remove block"
+                       Click="OnRemoveBlockClick" Tag="{Binding}" />
+          </Grid>
+
+          <!-- Preset-based body: pick/type a preset name (autocomplete from cfgrandompresets.xml) -->
+          <StackPanel Orientation="Horizontal" Margin="2,0,0,0"
+                      Visibility="{Binding IsPreset, Converter={StaticResource BoolToVis}}">
+            <TextBlock Text="Preset" VerticalAlignment="Center" Margin="0,0,8,0"
+                       Style="{StaticResource StBlockLabel}" />
+            <ComboBox Width="260" FontSize="12" IsEditable="True"
+                      ItemsSource="{Binding PresetSuggestions}"
+                      Text="{Binding PresetText, UpdateSourceTrigger=LostFocus}"
+                      LostFocus="OnBlockPresetLostFocus" KeyDown="OnBlockPresetKeyDown" Tag="{Binding}"
+                      ToolTip="Name of a preset from cfgrandompresets.xml (type to filter, free text allowed)" />
+          </StackPanel>
+
+          <!-- Chance-based body -->
+          <StackPanel Visibility="{Binding IsChance, Converter={StaticResource BoolToVis}}">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+              <TextBlock Text="Spawn chance" VerticalAlignment="Center" Margin="0,0,8,0"
+                         Style="{StaticResource StBlockLabel}" />
+              <ctl:ChanceField VerticalAlignment="Center" MinHeight="32" Value="{Binding Chance, Mode=TwoWay}"
+                               ValueCommitted="OnBlockChanceFieldCommitted" Tag="{Binding}" />
+              <ui:SymbolIcon Symbol="Info24" FontSize="15" Margin="6,0,0,0" VerticalAlignment="Center"
+                             Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                             ToolTip="Probability (0..1) that this block rolls its loot." />
+            </StackPanel>
+            <DataGrid ItemsSource="{Binding Items}"
+                      Style="{StaticResource DarkDataGrid}" ColumnHeaderStyle="{StaticResource DarkDataGridColumnHeader}"
+                      AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                      IsReadOnly="False" SelectionMode="Single"
+                      Background="Transparent" BorderThickness="0"
+                      MaxHeight="180"
+                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                      RowStyle="{StaticResource DarkDataGridRow}" CellStyle="{StaticResource DarkDataGridCell}"
+                      CellEditEnding="OnItemCellEditEnding" Tag="{Binding}">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Item name"
+                                    Binding="{Binding Name, UpdateSourceTrigger=LostFocus}" Width="*" />
+                <DataGridTemplateColumn Header="Chance" Width="190" CanUserResize="False" IsReadOnly="True">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <ctl:ChanceField Inline="True" Value="{Binding Chance, Mode=TwoWay}" VerticalAlignment="Center"
+                                       HorizontalAlignment="Left" Margin="2"
+                                       ValueCommitted="OnSpawnItemChanceCommitted" />
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="" Width="Auto" IsReadOnly="True">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <ui:Button Content="✕" FontSize="11" Padding="6,2"
+                                 Click="OnRemoveItemClick" Tag="{Binding}" />
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+              </DataGrid.Columns>
+            </DataGrid>
+            <!-- Add item — type to search classnames from types.xml; the dropdown opens + filters as you
+                 type (same as the Random Presets box). Filtering is done in the VM, so the combo's native
+                 text-search is off; an editable ComboBox has no placeholder, so a hint is overlaid. -->
+            <Grid Margin="0,6,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <ctl:AutoSuggestBox Grid.Column="0" Margin="0,0,4,0"
+                                  Suggestions="{Binding ItemPool}"
+                                  Text="{Binding NewItemName, Mode=TwoWay}"
+                                  Placeholder="search item classname (e.g. Nail)"
+                                  Submitted="OnItemSubmitted" />
+              <ctl:ChanceField Grid.Column="1" Margin="0,0,4,0" VerticalAlignment="Stretch" MinHeight="28"
+                               Value="{Binding NewItemChance, Mode=TwoWay}" />
+              <ui:Button Grid.Column="2" Content="Add item"
+                         Click="OnAddItemClick" Tag="{Binding}" />
+            </Grid>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <Grid Margin="0,12,0,0">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />  <!-- toolbar -->
+      <RowDefinition Height="*" />     <!-- master + detail -->
+      <RowDefinition Height="Auto" />  <!-- status -->
+    </Grid.RowDefinitions>
+
+    <!-- Toolbar: file label + Reload/Undo/Redo -->
+    <Grid Grid.Row="0" Margin="0,0,0,8">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+        <ui:SymbolIcon Symbol="Document24" Margin="0,0,6,0"
+                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+        <TextBlock Text="{Binding FileLabel}" VerticalAlignment="Center"
+                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="12"
+                   TextTrimming="CharacterEllipsis" MaxWidth="640" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal">
+        <ctl:GlossaryButton Title="Spawnable Types" Entries="{x:Static help:Glossary.SpawnableTypes}" Margin="0,0,12,0" />
+        <ui:Button Content="Reload" Margin="0,0,6,0" Click="OnReloadClick"
+                   ToolTip="Re-read cfgspawnabletypes.xml from disk (discards the undo history)" />
+        <ui:Button Margin="0,0,6,0" Command="{Binding UndoCommand}" ToolTip="Undo the last edit">
+          <ui:SymbolIcon Symbol="ArrowUndo24" />
+        </ui:Button>
+        <ui:Button Command="{Binding RedoCommand}" ToolTip="Redo">
+          <ui:SymbolIcon Symbol="ArrowRedo24" />
+        </ui:Button>
+      </StackPanel>
+    </Grid>
+
+    <!-- Master (left) + detail (right) -->
+    <Grid Grid.Row="1">
+      <!-- 50/50 split by default; the GridSplitter lets you rebalance. -->
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" MinWidth="300" />
+        <ColumnDefinition Width="8" />
+        <ColumnDefinition Width="*" MinWidth="360" />
+      </Grid.ColumnDefinitions>
+
+      <!-- ===== Master: type list ===== -->
+      <Border Grid.Column="0" CornerRadius="8" Padding="10"
+              Background="{DynamicResource ControlFillColorDefaultBrush}"
+              BorderBrush="{DynamicResource ControlElevationBorderBrush}" BorderThickness="1">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />  <!-- title -->
+            <RowDefinition Height="Auto" />  <!-- filter -->
+            <RowDefinition Height="*" />     <!-- grid -->
+            <RowDefinition Height="Auto" />  <!-- add row -->
+          </Grid.RowDefinitions>
+
+          <TextBlock Grid.Row="0" Text="Spawnable types" Style="{StaticResource StSectionHeader}" Margin="0,0,0,6" />
+
+          <ui:TextBox Grid.Row="1" Margin="0,0,0,6" FontSize="12"
+                      PlaceholderText="filter by name, preset, or item…"
+                      ToolTip="Searches the type name plus the presets it references and the item classnames it spawns"
+                      Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}" />
+
+          <DataGrid Grid.Row="2" x:Name="TypeGrid"
+                    ItemsSource="{Binding Types}"
+                    SelectedItem="{Binding SelectedType, Mode=TwoWay}"
+                    Style="{StaticResource DarkDataGrid}" ColumnHeaderStyle="{StaticResource DarkDataGridColumnHeader}"
+                      AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                    HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                    IsReadOnly="True" SelectionMode="Single"
+                    Background="Transparent" BorderThickness="0"
+                    EnableRowVirtualization="True"
+                    VirtualizingPanel.IsVirtualizing="True"
+                    VirtualizingPanel.VirtualizationMode="Recycling"
+                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                    RowStyle="{StaticResource DarkDataGridRow}" CellStyle="{StaticResource DarkDataGridCell}">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+              <DataGridCheckBoxColumn Header="Hoard" Binding="{Binding Hoarder}" Width="Auto" />
+              <DataGridTextColumn Header="Damage" Binding="{Binding DamageLabel}" Width="Auto" />
+              <DataGridTextColumn Header="#cargo" Binding="{Binding CargoCount}" Width="Auto" />
+              <DataGridTextColumn Header="#att" Binding="{Binding AttachmentsCount}" Width="Auto" />
+              <!-- Per-row quick actions -->
+              <DataGridTemplateColumn Header="" Width="Auto" IsReadOnly="True">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                      <ui:Button Icon="{ui:SymbolIcon Delete24}" Padding="5" FontSize="12"
+                                 Appearance="Danger" ToolTip="Remove this type (rename it inline in the detail pane)"
+                                 Click="OnRowRemoveClick" />
+                    </StackPanel>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+            </DataGrid.Columns>
+          </DataGrid>
+
+          <!-- Add type -->
+          <Grid Grid.Row="3" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ctl:AutoSuggestBox Grid.Column="0" Margin="0,0,4,0"
+                                Suggestions="{Binding TypeNames}"
+                                Text="{Binding NewTypeName, Mode=TwoWay}"
+                                Placeholder="new type classname (suggests from types.xml)"
+                                Submitted="OnAddTypeSubmitted" />
+            <ui:Button Grid.Column="1" Content="Add" Click="OnAddTypeClick" />
+          </Grid>
+
+        </Grid>
+      </Border>
+
+      <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" Background="Transparent" />
+
+      <!-- ===== Detail: selected type ===== -->
+      <Border Grid.Column="2" CornerRadius="8" Padding="10"
+              Background="{DynamicResource ControlFillColorDefaultBrush}"
+              BorderBrush="{DynamicResource ControlElevationBorderBrush}" BorderThickness="1">
+        <Grid>
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+              <!-- Header: inline rename of the selected type (Enter or the button commits — no modal) -->
+              <Grid Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ctl:AutoSuggestBox Grid.Column="0" Margin="0,0,6,0" FontSize="15" VerticalAlignment="Center"
+                                    IsEnabled="{Binding HasSelectedType}"
+                                    Suggestions="{Binding TypeNames}"
+                                    Text="{Binding RenameText, Mode=TwoWay}"
+                                    Placeholder="select a type from the list"
+                                    Submitted="OnRenameSubmitted" />
+                <ui:Button Grid.Column="1" Content="Rename" Click="OnRenameClick"
+                           IsEnabled="{Binding HasSelectedType}" />
+              </Grid>
+
+              <!-- Hoarder + damage -->
+              <Border CornerRadius="6" Padding="10" Margin="0,0,0,10"
+                      Background="{DynamicResource ControlFillColorSecondaryBrush}">
+                <StackPanel>
+                  <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <CheckBox Content="Hoarder" IsChecked="{Binding SelectedHoarder, Mode=TwoWay}"
+                              Click="OnHoarderClick" VerticalAlignment="Center" />
+                    <TextBlock Text="&lt;hoarder&gt; flag" FontFamily="Consolas" VerticalAlignment="Center"
+                               Margin="6,0,0,0" Style="{StaticResource StHint}" />
+                    <ui:SymbolIcon Symbol="Info24" FontSize="15" Margin="6,0,0,0" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                   ToolTip="When on, this type's loot counts toward the hoarder (stash) limit instead of the normal map economy." />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Damage" VerticalAlignment="Center" Margin="0,0,8,0"
+                               Style="{StaticResource StBlockLabel}" />
+                    <ui:TextBox Width="70" Margin="0,0,4,0" FontSize="12" PlaceholderText="min"
+                                ctl:NumericBehavior.FloatOnly="True"
+                                ToolTip="0..1 spawn-health. Leave BOTH min and max empty to remove the damage range."
+                                Text="{Binding DamageMin, UpdateSourceTrigger=PropertyChanged}"
+                                LostFocus="OnDamageLostFocus" KeyDown="OnDamageKeyDown" />
+                    <TextBlock Text="–" VerticalAlignment="Center" Margin="0,0,4,0" />
+                    <ui:TextBox Width="70" Margin="0,0,4,0" FontSize="12" PlaceholderText="max"
+                                ctl:NumericBehavior.FloatOnly="True"
+                                ToolTip="0..1 spawn-health. Leave BOTH min and max empty to remove the damage range."
+                                Text="{Binding DamageMax, UpdateSourceTrigger=PropertyChanged}"
+                                LostFocus="OnDamageLostFocus" KeyDown="OnDamageKeyDown" />
+                    <ui:SymbolIcon Symbol="Info24" FontSize="15" Margin="2,0,0,0" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                   ToolTip="Spawn-health range 0..1 (0 = pristine, 1 = ruined). Leave both empty to omit the damage element." />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <!-- Cargo + attachments: side by side on wide panes, stacked on narrow (responsive columns) -->
+              <UniformGrid Columns="{Binding ActualWidth, RelativeSource={RelativeSource Self}, Converter={StaticResource WidthToColumns}}">
+
+                <!-- ===== Cargo ===== -->
+                <StackPanel Margin="0,0,6,8">
+                  <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <TextBlock Text="Cargo blocks" Style="{StaticResource StSectionHeader}" VerticalAlignment="Center" />
+                    <ui:SymbolIcon Symbol="Info24" FontSize="15" Margin="6,0,0,0" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                   ToolTip="Loot carried INSIDE this item (its cargo). Add a preset block (shared table) or a chance block (inline items)." />
+                  </StackPanel>
+                  <Border CornerRadius="6" Padding="10"
+                          Background="{DynamicResource ControlFillColorSecondaryBrush}"
+                          BorderBrush="{DynamicResource ControlElevationBorderBrush}" BorderThickness="1">
+                    <StackPanel>
+                      <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="From a preset" Margin="0,0,8,0" Style="{StaticResource StBlockLabel}" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="1" Margin="0,0,6,0" FontSize="12" x:Name="CargoPresetCombo"
+                                  ItemsSource="{Binding CargoPresetNames}" IsEditable="True"
+                                  ToolTip="Pick or type a cargo preset name (cfgrandompresets.xml)" />
+                        <ui:Button Grid.Column="2" Content="+ Add preset block"
+                                   Click="OnAddCargoPresetClick" />
+                      </Grid>
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Custom chance" Margin="0,0,8,0" Style="{StaticResource StBlockLabel}" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="inline chance + your own item list (no preset)"
+                                   Style="{StaticResource StHint}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                        <ui:Button Grid.Column="2" Content="+ Add chance block"
+                                   Click="OnAddCargoChanceClick" />
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+                  <!-- Divider: separates the add controls from the list of existing blocks -->
+                  <Grid Margin="2,10,0,4">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Margin="0,0,8,0" Style="{StaticResource StHint}" VerticalAlignment="Center"
+                               Text="{Binding CargoBlocks.Count, StringFormat='Added blocks · {0}'}" />
+                    <Border Grid.Column="1" Height="1" VerticalAlignment="Center"
+                            Background="{DynamicResource ControlElevationBorderBrush}" />
+                  </Grid>
+                  <TextBlock Text="No cargo blocks yet — add one above." Style="{StaticResource StHint}" Margin="2,2,0,0"
+                             Visibility="{Binding CargoBlocks.Count, Converter={StaticResource ZeroToVis}}" />
+                  <ItemsControl ItemsSource="{Binding CargoBlocks}" Margin="0,4,0,0"
+                                ItemTemplate="{StaticResource BlockTemplate}" />
+                </StackPanel>
+
+                <!-- ===== Attachments ===== -->
+                <StackPanel Margin="6,0,0,8">
+                  <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <TextBlock Text="Attachments blocks" Style="{StaticResource StSectionHeader}" VerticalAlignment="Center" />
+                    <ui:SymbolIcon Symbol="Info24" FontSize="15" Margin="6,0,0,0" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                   ToolTip="Items ATTACHED to this one when it spawns (e.g. an optic on a rifle). Add a preset block or a chance block." />
+                  </StackPanel>
+                  <Border CornerRadius="6" Padding="10"
+                          Background="{DynamicResource ControlFillColorSecondaryBrush}"
+                          BorderBrush="{DynamicResource ControlElevationBorderBrush}" BorderThickness="1">
+                    <StackPanel>
+                      <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="From a preset" Margin="0,0,8,0" Style="{StaticResource StBlockLabel}" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="1" Margin="0,0,6,0" FontSize="12" x:Name="AttPresetCombo"
+                                  ItemsSource="{Binding AttachmentsPresetNames}" IsEditable="True"
+                                  ToolTip="Pick or type an attachments preset name (cfgrandompresets.xml)" />
+                        <ui:Button Grid.Column="2" Content="+ Add preset block"
+                                   Click="OnAddAttPresetClick" />
+                      </Grid>
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Custom chance" Margin="0,0,8,0" Style="{StaticResource StBlockLabel}" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="inline chance + your own item list (no preset)"
+                                   Style="{StaticResource StHint}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                        <ui:Button Grid.Column="2" Content="+ Add chance block"
+                                   Click="OnAddAttChanceClick" />
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+                  <Grid Margin="2,10,0,4">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Margin="0,0,8,0" Style="{StaticResource StHint}" VerticalAlignment="Center"
+                               Text="{Binding AttachmentsBlocks.Count, StringFormat='Added blocks · {0}'}" />
+                    <Border Grid.Column="1" Height="1" VerticalAlignment="Center"
+                            Background="{DynamicResource ControlElevationBorderBrush}" />
+                  </Grid>
+                  <TextBlock Text="No attachments blocks yet — add one above." Style="{StaticResource StHint}" Margin="2,2,0,0"
+                             Visibility="{Binding AttachmentsBlocks.Count, Converter={StaticResource ZeroToVis}}" />
+                  <ItemsControl ItemsSource="{Binding AttachmentsBlocks}" Margin="0,4,0,0"
+                                ItemTemplate="{StaticResource BlockTemplate}" />
+                </StackPanel>
+
+              </UniformGrid>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- Status -->
+    <TextBlock Grid.Row="2" Margin="0,8,0,0" FontSize="12"
+               Text="{Binding Status}"
+               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+  </Grid>
+</UserControl>

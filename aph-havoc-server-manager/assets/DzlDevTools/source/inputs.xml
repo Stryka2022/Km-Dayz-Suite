@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<!--
+	DzlDevTools input actions. Schema verified against a working mod (SchanaModParty
+	Data/Inputs.xml) + DayZ Modding Wiki: root <modded_inputs>; actions declare name+loc
+	(loc takes a literal label); <preset> ships the defaults; a modifier chord is expressed
+	by NESTING <btn> elements (hold outer, press inner).
+
+	The actions appear in Options -> Controls where the player can rebind them freely;
+	the game persists the rebinds itself.
+-->
+<modded_inputs>
+	<inputs>
+		<actions>
+			<input name="UADzlSpawnClipboard" loc="DZL: Spawn item from clipboard" />
+			<input name="UADzlConsole" loc="DZL: Script console (item spawner)" />
+			<input name="UADzlTeleport" loc="DZL: Teleport to cursor" />
+			<input name="UADzlFreeCam" loc="DZL: Free camera" />
+			<input name="UADzlFreeCamStay" loc="DZL: Free camera (player stays)" />
+		</actions>
+	</inputs>
+	<preset>
+		<input name="UADzlSpawnClipboard">
+			<btn name="kLControl"><btn name="kLShift"><btn name="kF9" /></btn></btn>
+		</input>
+		<input name="UADzlConsole">
+			<btn name="kLControl"><btn name="kLShift"><btn name="kF10" /></btn></btn>
+		</input>
+		<input name="UADzlTeleport">
+			<btn name="kLControl"><btn name="kLShift"><btn name="kT" /></btn></btn>
+		</input>
+		<input name="UADzlFreeCam">
+			<btn name="kLControl"><btn name="kLShift"><btn name="kC" /></btn></btn>
+		</input>
+		<input name="UADzlFreeCamStay">
+			<btn name="kLControl"><btn name="kLShift"><btn name="kX" /></btn></btn>
+		</input>
+	</preset>
+</modded_inputs>

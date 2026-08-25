@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Product>APH Havoc Server Manager</Product>
+    <Company>APH Havoc Survival</Company>
+    <Authors>APH Havoc Survival and upstream contributors</Authors>
+    <Description>APH Havoc public DayZ server manager, Workshop, remote files, RCon, economy and automation suite.</Description>
+    <Copyright>APH Havoc public edition © 2026 APH Havoc Survival; upstream notices retained under GNU GPL v3.</Copyright>
+  </PropertyGroup>
+</Project>
