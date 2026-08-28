@@ -14,15 +14,17 @@ public static class SteamTokenStore
     private static string RefreshFile(string configPath) => Path.Combine(Dir(configPath), "steam.token");
     private static string AccessFile(string configPath) => Path.Combine(Dir(configPath), "steam.access");
 
-    private static void Write(string file, string value)
+    private static bool Write(string file, string value)
     {
-        if (!OperatingSystem.IsWindows()) return;   // DPAPI is Windows-only (dzl is a Windows app)
+        if (!OperatingSystem.IsWindows() || string.IsNullOrWhiteSpace(value)) return false;
         try
         {
+            Directory.CreateDirectory(Path.GetDirectoryName(file)!);
             var enc = ProtectedData.Protect(Encoding.UTF8.GetBytes(value), null, DataProtectionScope.CurrentUser);
             File.WriteAllBytes(file, enc);
+            return string.Equals(Read(file), value, StringComparison.Ordinal);
         }
-        catch { /* best-effort; sign-in can be repeated */ }
+        catch { return false; }
     }
 
     private static string? Read(string file)
@@ -38,13 +40,13 @@ public static class SteamTokenStore
         catch { return null; }
     }
 
-    public static void Save(string configPath, string refreshToken) => Write(RefreshFile(configPath), refreshToken);
+    public static bool Save(string configPath, string refreshToken) => Write(RefreshFile(configPath), refreshToken);
     public static string? Load(string configPath) => Read(RefreshFile(configPath));
 
-    public static void SaveAccess(string configPath, string accessToken) => Write(AccessFile(configPath), accessToken);
+    public static bool SaveAccess(string configPath, string accessToken) => Write(AccessFile(configPath), accessToken);
     public static string? LoadAccess(string configPath) => Read(AccessFile(configPath));
 
-    public static bool Exists(string configPath) => File.Exists(RefreshFile(configPath));
+    public static bool Exists(string configPath) => Load(configPath) is not null;
 
     public static void Clear(string configPath)
     {

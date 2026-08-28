@@ -38,11 +38,11 @@
                 <TextBlock Text="Scan with the Steam mobile app and approve the sign-in." FontSize="11"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
               </StackPanel>
-              <Grid Grid.Row="1" Margin="0,10,0,8" MinHeight="112">
-                <Border Width="112" Height="112" Background="White" CornerRadius="5" HorizontalAlignment="Left">
+              <Grid Grid.Row="1" Margin="0,10,0,8" MinHeight="176">
+                <Border Width="176" Height="176" Background="White" CornerRadius="5" HorizontalAlignment="Left">
                   <Image x:Name="QrImage" Margin="5" Stretch="Uniform" />
                 </Border>
-                <TextBlock x:Name="QrPlaceholder" Text="Select Start QR sign-in" Margin="128,0,0,0"
+                <TextBlock x:Name="QrPlaceholder" Text="Select Start QR sign-in" Margin="192,0,0,0"
                            VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" />
               </Grid>
               <StackPanel Grid.Row="2" Orientation="Horizontal">

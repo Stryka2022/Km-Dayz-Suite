@@ -4,6 +4,23 @@ All notable changes to dzl are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the app is versioned by
 git tag (`v*`), which the release workflow turns into a Velopack release.
 
+## [0.1.35-km.10] - 2026-08-28
+
+### Changed
+- The Server Manager executable and WPF windows now use the KM DayZ Suite application icon.
+- Steam QR codes are larger and use SteamKit's recommended low-error-correction payload, with an
+  explicit refresh action and clearer mobile approval state.
+
+### Fixed
+- QR and password sign-in now use SteamKit's supported Steam Client session identity instead of the
+  mismatched WebBrowser/Client request that prevented reliable completion.
+- Starting a password sign-in cancels the active QR attempt (and vice versa) without allowing the
+  stale attempt to overwrite the newer result. Cancelling an attempt also releases any pending Steam
+  Guard prompt.
+- A login is only shown as saved after its DPAPI-protected refresh token can be decrypted again.
+  Corrupt or empty session files no longer make the UI report that Steam is signed in, and tokens are
+  isolated per configuration rather than shared through a process-wide cache.
+
 ## [0.1.35-km.9] - 2026-08-28
 
 ### Added

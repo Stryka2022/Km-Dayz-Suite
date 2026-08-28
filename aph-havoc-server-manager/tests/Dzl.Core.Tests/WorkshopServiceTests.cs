@@ -6,6 +6,20 @@ using FluentAssertions;
 public class WorkshopServiceTests
 {
     [Fact]
+    public void Steam_session_requires_a_decryptable_non_empty_token()
+    {
+        var dir = Directory.CreateTempSubdirectory().FullName;
+        var configPath = Path.Combine(dir, "config.json");
+
+        File.WriteAllBytes(Path.Combine(dir, "steam.token"), [1, 2, 3, 4]);
+        SteamTokenStore.Exists(configPath).Should().BeFalse();
+
+        SteamTokenStore.Save(configPath, "valid-refresh-token").Should().BeTrue();
+        SteamTokenStore.Exists(configPath).Should().BeTrue();
+        SteamTokenStore.Load(configPath).Should().Be("valid-refresh-token");
+    }
+
+    [Fact]
     public void Steam_login_is_read_from_global_config()
     {
         var dir = Directory.CreateTempSubdirectory().FullName;

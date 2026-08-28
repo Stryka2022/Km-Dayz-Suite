@@ -31,10 +31,6 @@ public sealed class WorkshopService
     /// <summary>Full details for one item (subscribers/description/tags) via the keyless details endpoint.</summary>
     public Task<WorkshopItem?> DetailsAsync(string id) => WorkshopWeb.DetailsAsync(id);
 
-    // Cached access token (short-lived) minted from the stored refresh token; renewed on demand.
-    private static string? _accessCache;
-    private static DateTime _accessAt;
-
     /// <summary>True when in-app Subscribe is possible — a signed-in Steam session (stored refresh token) or
     /// an explicitly pasted access token.</summary>
     public bool HasAccessToken => SignedIn || !string.IsNullOrWhiteSpace(Cfg.SteamAccessToken);
@@ -50,18 +46,14 @@ public sealed class WorkshopService
         if (!string.IsNullOrWhiteSpace(pasted)) return (pasted.Trim(), "");
         var refresh = SteamTokenStore.Load(_configPath);
         if (refresh is null) return (null, "not signed in to Steam");
-        // 1) in-memory cache (this process)  2) disk-cached access token from a prior run — reuse while it's still
-        // valid (~24h) since renewing from the refresh token is unreliable. Only mint a new one once it's expired.
-        if (!string.IsNullOrEmpty(_accessCache) && SteamAuth.TokenStillValid(_accessCache)) return (_accessCache, "");
+        // Reuse the per-config DPAPI-protected token while it is valid. Keeping a process-wide cache here would
+        // leak one Steam account's access token into another server profile.
         var stored = SteamTokenStore.LoadAccess(_configPath);
         if (!string.IsNullOrEmpty(stored) && SteamAuth.TokenStillValid(stored))
-        {
-            _accessCache = stored; _accessAt = DateTime.UtcNow;
             return (stored, "");
-        }
         using var auth = new SteamAuth();
         var (token, error) = await auth.RenewAccessTokenAsync(refresh);
-        if (!string.IsNullOrEmpty(token)) { _accessCache = token; _accessAt = DateTime.UtcNow; SteamTokenStore.SaveAccess(_configPath, token); }
+        if (!string.IsNullOrEmpty(token)) SteamTokenStore.SaveAccess(_configPath, token);
         return (token, string.IsNullOrEmpty(token) ? $"couldn't refresh Steam session ({error}) — sign in again" : "");
     }
 
@@ -79,8 +71,7 @@ public sealed class WorkshopService
     {
         using var auth = new SteamAuth();
         var r = await auth.LoginViaQrAsync(onChallengeUrl, ct);
-        if (r.Ok && !string.IsNullOrWhiteSpace(r.RefreshToken)) OnSignedIn(r);
-        return r;
+        return r.Ok ? OnSignedIn(r) : r;
     }
 
     /// <summary>Username/password sign-in (+ Steam Guard via <paramref name="authenticator"/>).</summary>
@@ -88,25 +79,33 @@ public sealed class WorkshopService
     {
         using var auth = new SteamAuth();
         var r = await auth.LoginViaCredentialsAsync(user, pass, authenticator, ct);
-        if (r.Ok && !string.IsNullOrWhiteSpace(r.RefreshToken)) OnSignedIn(r);
-        return r;
+        return r.Ok ? OnSignedIn(r) : r;
     }
 
     /// <summary>On a successful sign-in: cache the access token, persist the refresh token, and remember the
     /// account name so steamcmd downloads use it (DayZ Workshop items can't be fetched anonymously).</summary>
-    private void OnSignedIn(SteamLoginResult r)
+    private SteamLoginResult OnSignedIn(SteamLoginResult r)
     {
-        SteamTokenStore.Save(_configPath, r.RefreshToken);
-        _accessCache = r.AccessToken; _accessAt = DateTime.UtcNow;
+        if (!SteamTokenStore.Save(_configPath, r.RefreshToken))
+            return r with { Ok = false, Error = "Steam approved the login, but KM DayZ Suite could not securely save the session. Check access to the app data folder and try again." };
+
         if (!string.IsNullOrWhiteSpace(r.AccessToken)) SteamTokenStore.SaveAccess(_configPath, r.AccessToken);
-        if (string.IsNullOrWhiteSpace(r.AccountName)) return;
-        var (cfg, _, active) = Profiles.ResolveActive(_configPath);
-        if (!string.Equals(cfg.SteamLogin, r.AccountName, StringComparison.OrdinalIgnoreCase))
-            GlobalStore.Save(cfg.GlobalPart(active) with { SteamLogin = r.AccountName }, _configPath);
+        try
+        {
+            var (cfg, _, active) = Profiles.ResolveActive(_configPath);
+            if (!string.Equals(cfg.SteamLogin, r.AccountName, StringComparison.OrdinalIgnoreCase))
+                GlobalStore.Save(cfg.GlobalPart(active) with { SteamLogin = r.AccountName }, _configPath);
+            return r;
+        }
+        catch (Exception ex)
+        {
+            SteamTokenStore.Clear(_configPath);
+            return r with { Ok = false, Error = $"Steam approved the login, but the account name could not be saved ({ex.Message})." };
+        }
     }
 
     /// <summary>Forget the stored Steam session.</summary>
-    public void SignOut() { SteamTokenStore.Clear(_configPath); _accessCache = null; }
+    public void SignOut() => SteamTokenStore.Clear(_configPath);
 
     /// <summary>steamcmd's install root for Workshop downloads — <c>&lt;ProjectsRoot&gt;\workshop</c>. Items end up
     /// at the clean <c>&lt;ProjectsRoot&gt;\workshop\&lt;id&gt;</c> (a junction to the hidden <c>.steamcmd</c> cache),

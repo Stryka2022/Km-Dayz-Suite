@@ -63,7 +63,10 @@ parent path plus the safe server name, require an owned Steam account, verify th
 DayZServer executable before success, roll back failed instances, detect the LAN IP and
 write the server display name into serverDZ.cfg. Windows/Linux platform, CPU,
 installed .NET SDK/runtime and .NET 11 detection were added to setup, About and the
-headless CLI. The companion version for these changes is 0.1.35-km.9.
+headless CLI. Steam QR/password authentication now uses the supported Steam Client
+session flow, safely cancels competing attempts, verifies encrypted session persistence,
+and the companion executable/windows use the KM DayZ Suite icon. The companion version
+for these changes is 0.1.35-km.10.
 Original upstream authorship, copyright and GPL licensing are retained in this legal
 notice and the corresponding source history. Public distribution and modifications
 are presented under the APH Havoc name without claiming ownership of upstream work.

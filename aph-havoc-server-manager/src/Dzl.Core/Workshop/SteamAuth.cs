@@ -11,7 +11,7 @@ public sealed record SteamLoginResult(bool Ok, string AccountName, string Refres
 
 /// <summary>Steam sign-in via SteamKit2 — QR (scan with the Steam mobile app) or username/password
 /// (+ Steam Guard via an <see cref="IAuthenticator"/>). The access token it returns is what the Workshop
-/// Subscribe API needs. Never throws.</summary>
+/// Subscribe API needs. Authentication failures are returned in the result; caller cancellation is propagated.</summary>
 /// <remarks>Returns a long-lived <b>refresh token</b> (store encrypted) + a short <b>access token</b>;
 /// <see cref="RenewAccessTokenAsync"/> mints a fresh access token from the refresh token without
 /// re-login.</remarks>
@@ -25,15 +25,30 @@ public sealed class SteamAuth : IDisposable
 
     private async Task<bool> ConnectAsync(CancellationToken ct)
     {
-        var tcs = new TaskCompletionSource<bool>();
+        ct.ThrowIfCancellationRequested();
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         _mgr.Subscribe<SteamClient.ConnectedCallback>(_ => tcs.TrySetResult(true));
         _mgr.Subscribe<SteamClient.DisconnectedCallback>(_ => tcs.TrySetResult(false));
         _pump = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var token = _pump.Token;
-        _ = Task.Run(() => { while (!token.IsCancellationRequested) _mgr.RunWaitCallbacks(TimeSpan.FromMilliseconds(100)); });
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                while (!token.IsCancellationRequested)
+                    _mgr.RunWaitCallbacks(TimeSpan.FromMilliseconds(100));
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        }, CancellationToken.None);
         _client.Connect();
-        using (ct.Register(() => tcs.TrySetResult(false)))
-            return await tcs.Task.ConfigureAwait(false);
+        using var registration = ct.Register(() => tcs.TrySetCanceled(ct));
+        var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(30), ct)).ConfigureAwait(false);
+        if (completed != tcs.Task)
+        {
+            ct.ThrowIfCancellationRequested();
+            return false;
+        }
+        return await tcs.Task.ConfigureAwait(false);
     }
 
     /// <summary>QR sign-in: <paramref name="onChallengeUrl"/> receives the URL to render as a QR (and again
@@ -43,20 +58,19 @@ public sealed class SteamAuth : IDisposable
         try
         {
             if (!await ConnectAsync(ct)) return new(false, "", "", "", "could not connect to Steam");
-            // WebBrowser platform: its access token (aud "web") works against the Steam Web API (Workshop
-            // Subscribe), and a WebBrowser refresh token CAN mint fresh access tokens via GenerateAccessTokenForApp
-            // (supported for WebBrowser + MobileApp; only the *RefreshAccessToken* method is MobileApp-only). Unlike
-            // MobileApp, a WebBrowser sign-in does NOT register as a new mobile device, so it avoids the Steam
-            // security alert / Guard email a MobileApp login triggers.
             var session = await _client.Authentication.BeginAuthSessionViaQRAsync(new AuthSessionDetails
             {
-                PlatformType = EAuthTokenPlatformType.k_EAuthTokenPlatformType_WebBrowser,
+                // Keep SteamKit's supported SteamClient/Client defaults. The former WebBrowser + Client
+                // combination produced a mismatched auth request that could never complete reliably.
+                DeviceFriendlyName = $"{Environment.MachineName} (KM DayZ Suite)",
             }).ConfigureAwait(false);
-            onChallengeUrl(session.ChallengeURL);
             session.ChallengeURLChanged = () => onChallengeUrl(session.ChallengeURL);
+            onChallengeUrl(session.ChallengeURL);
             var poll = await session.PollingWaitForResultAsync(ct).ConfigureAwait(false);
-            return new(true, poll.AccountName, poll.RefreshToken, poll.AccessToken ?? "", "");
+            return ResultFrom(poll.AccountName, poll.RefreshToken, poll.AccessToken);
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (AuthenticationException ex) { return Failed($"{ex.Message} ({ex.Result})"); }
         catch (Exception ex) { return new(false, "", "", "", ex.Message); }
         finally { Cleanup(); }
     }
@@ -73,14 +87,25 @@ public sealed class SteamAuth : IDisposable
                 Password = password,
                 IsPersistentSession = true,
                 Authenticator = authenticator,
-                PlatformType = EAuthTokenPlatformType.k_EAuthTokenPlatformType_WebBrowser,  // web-aud token, renewable, no mobile-device alert (see QR note)
+                DeviceFriendlyName = $"{Environment.MachineName} (KM DayZ Suite)",
             }).ConfigureAwait(false);
             var poll = await session.PollingWaitForResultAsync(ct).ConfigureAwait(false);
-            return new(true, poll.AccountName, poll.RefreshToken, poll.AccessToken ?? "", "");
+            return ResultFrom(poll.AccountName, poll.RefreshToken, poll.AccessToken);
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (AuthenticationException ex) { return Failed($"{ex.Message} ({ex.Result})"); }
         catch (Exception ex) { return new(false, "", "", "", ex.Message); }
         finally { Cleanup(); }
     }
+
+    private static SteamLoginResult ResultFrom(string? accountName, string? refreshToken, string? accessToken)
+    {
+        if (string.IsNullOrWhiteSpace(accountName)) return Failed("Steam returned no account name");
+        if (string.IsNullOrWhiteSpace(refreshToken)) return Failed("Steam returned no persistent session token");
+        return new(true, accountName, refreshToken, accessToken ?? "", "");
+    }
+
+    private static SteamLoginResult Failed(string error) => new(false, "", "", "", error);
 
     /// <summary>Mint a fresh access token from a stored refresh token (no re-login). Returns (token, error).</summary>
     public async Task<(string? token, string error)> RenewAccessTokenAsync(string refreshToken)

@@ -13,8 +13,9 @@ namespace Dzl.Tray;
 public partial class SteamLoginWindow : FluentWindow
 {
     private readonly MainViewModel _vm;
-    private readonly CancellationTokenSource _cts = new();
+    private CancellationTokenSource? _loginCts;
     private TaskCompletionSource<string>? _guard;
+    private int _attemptId;
 
     public bool SignedIn { get; private set; }
 
@@ -23,27 +24,63 @@ public partial class SteamLoginWindow : FluentWindow
         InitializeComponent();
         _vm = vm;
         Loaded += async (_, _) => await StartQrAsync();
-        Closed += (_, _) => _cts.Cancel();
+        Closed += (_, _) => CancelActiveAttempt();
     }
 
     private async Task StartQrAsync()
     {
+        var (attemptId, token) = BeginAttempt();
+        SignInBtn.IsEnabled = true;
+        QrRetryButton.IsEnabled = false;
+        QrImage.Source = null;
         QrStatus.Text = "Connecting to Steam…";
-        var r = await _vm.SteamLoginQrAsync(
-            url => Dispatcher.Invoke(() => { QrImage.Source = MakeQr(url); QrStatus.Text = "Scan with the Steam mobile app, then approve."; }),
-            _cts.Token);
-        OnResult(r);
+        try
+        {
+            var r = await _vm.SteamLoginQrAsync(
+                url => Dispatcher.Invoke(() =>
+                {
+                    if (!IsCurrent(attemptId)) return;
+                    QrImage.Source = MakeQr(url);
+                    QrStatus.Text = "Scan with Steam Guard, then approve the sign-in on your phone.";
+                }), token);
+            if (IsCurrent(attemptId)) OnResult(r);
+        }
+        catch (OperationCanceledException)
+        {
+            if (IsCurrent(attemptId)) QrStatus.Text = "QR sign-in cancelled.";
+        }
+        finally
+        {
+            if (IsCurrent(attemptId)) QrRetryButton.IsEnabled = true;
+        }
     }
+
+    private async void OnRetryQr(object sender, RoutedEventArgs e) => await StartQrAsync();
 
     private async void OnSignIn(object sender, RoutedEventArgs e)
     {
         var user = UserBox.Text.Trim();
         if (user.Length == 0 || PassBox.Password.Length == 0) { PassStatus.Text = "Enter username + password."; return; }
+        var password = PassBox.Password;
+        var (attemptId, token) = BeginAttempt();
+        QrRetryButton.IsEnabled = true;
         SignInBtn.IsEnabled = false;
         PassStatus.Text = "Signing in…";
-        var r = await _vm.SteamLoginCredentialsAsync(user, PassBox.Password, new DialogAuthenticator(this), _cts.Token);
-        SignInBtn.IsEnabled = true;
-        OnResult(r, password: true);
+        try
+        {
+            var task = _vm.SteamLoginCredentialsAsync(user, password, new DialogAuthenticator(this), token);
+            PassBox.Clear();
+            var r = await task;
+            if (IsCurrent(attemptId)) OnResult(r, password: true);
+        }
+        catch (OperationCanceledException)
+        {
+            if (IsCurrent(attemptId)) PassStatus.Text = "Sign-in cancelled.";
+        }
+        finally
+        {
+            if (IsCurrent(attemptId)) SignInBtn.IsEnabled = true;
+        }
     }
 
     private void OnResult(Dzl.Core.Workshop.SteamLoginResult r, bool password = false)
@@ -62,7 +99,8 @@ public partial class SteamLoginWindow : FluentWindow
     // Steam Guard prompt — driven by the IAuthenticator below.
     private Task<string> PromptGuardAsync(string prompt)
     {
-        _guard = new TaskCompletionSource<string>();
+        _guard?.TrySetCanceled();
+        _guard = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         Dispatcher.Invoke(() =>
         {
             GuardPrompt.Text = prompt;
@@ -80,11 +118,40 @@ public partial class SteamLoginWindow : FluentWindow
         _guard?.TrySetResult(code);
     }
 
+    private Task<bool> WaitForMobileApprovalAsync()
+    {
+        Dispatcher.Invoke(() => PassStatus.Text = "Approve this sign-in in the Steam mobile app…");
+        return Task.FromResult(true);
+    }
+
+    private (int id, CancellationToken token) BeginAttempt()
+    {
+        _guard?.TrySetCanceled();
+        _guard = null;
+        GuardPanel.Visibility = Visibility.Collapsed;
+        _loginCts?.Cancel();
+        _loginCts?.Dispose();
+        _loginCts = new CancellationTokenSource();
+        return (++_attemptId, _loginCts.Token);
+    }
+
+    private bool IsCurrent(int attemptId) => attemptId == _attemptId && !(_loginCts?.IsCancellationRequested ?? true);
+
+    private void CancelActiveAttempt()
+    {
+        _attemptId++;
+        _guard?.TrySetCanceled();
+        _guard = null;
+        _loginCts?.Cancel();
+        _loginCts?.Dispose();
+        _loginCts = null;
+    }
+
     private static BitmapImage MakeQr(string url)
     {
         using var gen = new QRCodeGenerator();
-        using var data = gen.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
-        var png = new PngByteQRCode(data).GetGraphic(8);
+        using var data = gen.CreateQrCode(url, QRCodeGenerator.ECCLevel.L);
+        var png = new PngByteQRCode(data).GetGraphic(12);
         var bmp = new BitmapImage();
         using var ms = new MemoryStream(png);
         bmp.BeginInit();
@@ -104,6 +171,6 @@ public partial class SteamLoginWindow : FluentWindow
             => _w.PromptGuardAsync($"Enter your Steam Guard (mobile authenticator) code{(previousCodeWasIncorrect ? " — last one was wrong" : "")}:");
         public Task<string> GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
             => _w.PromptGuardAsync($"Enter the Steam Guard code emailed to {email}{(previousCodeWasIncorrect ? " — last one was wrong" : "")}:");
-        public Task<bool> AcceptDeviceConfirmationAsync() => Task.FromResult(true);   // wait for the phone tap
+        public Task<bool> AcceptDeviceConfirmationAsync() => _w.WaitForMobileApprovalAsync();
     }
 }
