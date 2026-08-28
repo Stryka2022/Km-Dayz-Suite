@@ -1,6 +1,8 @@
+using System.IO;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using Dzl.Core.Config;
 using Dzl.Core.Servers;
 using Dzl.Tray;
 using Dzl.Tray.Views;
@@ -25,6 +27,7 @@ public class WpfRealizationSmokeTests
     {
         if (Application.Current is not null) return;
         var app = new App();
+        app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         app.InitializeComponent();   // loads App.xaml MergedDictionaries into Application.Current.Resources
         ApplicationThemeManager.Apply(ApplicationTheme.Dark);
     }
@@ -41,10 +44,41 @@ public class WpfRealizationSmokeTests
             .OrderBy(t => t.Name)
             .ToList();
 
+    private static void RealizeMainWindow()
+    {
+        var previousConfig = Environment.GetEnvironmentVariable("DZL_CONFIG");
+        var previousEmbedded = Environment.GetEnvironmentVariable("KM_SUITE_EMBEDDED");
+        var tempRoot = Path.Combine(Path.GetTempPath(), "aph-havoc-main-window-smoke", Guid.NewGuid().ToString("N"));
+        var configPath = Path.Combine(tempRoot, "config.json");
+        Directory.CreateDirectory(tempRoot);
+
+        try
+        {
+            Environment.SetEnvironmentVariable("DZL_CONFIG", configPath);
+            Environment.SetEnvironmentVariable("KM_SUITE_EMBEDDED", null);
+            Profiles.EnsureDefault(configPath);
+
+            var window = new MainWindow();
+            window.Measure(new Size(1240, 800));
+            window.Arrange(new Rect(0, 0, 1240, 800));
+            window.UpdateLayout();
+            window.Close();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DZL_CONFIG", previousConfig);
+            Environment.SetEnvironmentVariable("KM_SUITE_EMBEDDED", previousEmbedded);
+            try { Directory.Delete(tempRoot, recursive: true); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+    }
+
     [WpfFact]
     public void Every_usercontrol_realizes_without_throwing()
     {
         EnsureApp();
+        RealizeMainWindow();
 
         var controls = RealizableControls();
         controls.Should().NotBeEmpty("reflection must find the Tray UserControls/Views to smoke-test");

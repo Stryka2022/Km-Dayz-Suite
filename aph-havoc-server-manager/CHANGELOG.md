@@ -4,6 +4,20 @@ All notable changes to dzl are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the app is versioned by
 git tag (`v*`), which the release workflow turns into a Velopack release.
 
+## [0.1.35-km.11] - 2026-08-29
+
+### Changed
+- Entering the embedded Server Manager now switches only the required workspace layout instead of
+  recounting every unrelated editor collection. Startup navigation retries are coalesced, and the
+  file-channel and attachment watchdogs stop polling aggressively after the native window attaches.
+- The KM navigation button now updates the actual grid column and rail visibility, making collapse
+  and Focus mode deterministic even while the separately-running Server Manager HWND is embedded.
+
+### Fixed
+- Removed window-level XAML icon references that were not packaged as WPF resources and caused
+  `TypeConverterMarkupExtension` / `Cannot locate resource 'assets/icon.ico'` at Server Manager
+  startup. The executable still uses the KM DayZ Suite icon through its native application icon.
+
 ## [0.1.35-km.10] - 2026-08-28
 
 ### Changed

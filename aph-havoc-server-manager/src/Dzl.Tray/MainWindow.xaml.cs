@@ -193,7 +193,7 @@ public partial class MainWindow : FluentWindow
         AttachToKmHost();
         _kmEmbeddingWatch = new DispatcherTimer(DispatcherPriority.Background)
         {
-            Interval = TimeSpan.FromMilliseconds(250)
+            Interval = TimeSpan.FromSeconds(1)
         };
         _kmEmbeddingWatch.Tick += (_, _) => AttachToKmHost();
         _kmEmbeddingWatch.Start();
@@ -227,6 +227,11 @@ public partial class MainWindow : FluentWindow
                 throw new Win32Exception(Marshal.GetLastWin32Error());
             changedFrame = true;
         }
+
+        // The file channel exists only to bridge the short startup window before the registered
+        // Win32 message hook is ready. Once embedded, stop polling the file several times per
+        // second; all subsequent KM navigation uses the non-blocking registered message.
+        _kmNavigationWatch?.Stop();
 
         if (!GetClientRect(_kmHostHandle, out var bounds)) return;
         var width = Math.Max(1, bounds.Right);
