@@ -30,7 +30,7 @@ proprietary licence or RASP branding, and the KM licence does not restrict users
 GPL rights in it.
 
 Modification notice (GNU GPL v3 section 5):
-Modified by the KM DayZ Suite integration through 25 August 2026 to add an explicit
+Modified by the KM DayZ Suite integration through 28 August 2026 to add an explicit
 KM_SUITE_EMBEDDED presentation mode, embedded-process lifecycle behaviour, a
 KM-coloured left-rail Server Manager layout, integrated Workshop and Steam sign-in,
 integrated Economy tools, FTP/explicit-FTPS remote file management with local
@@ -55,8 +55,12 @@ managed by the active companion instance are stopped and restarted around a due
 deployment. Public-facing product names, window titles, setup copy, Workshop labels,
 update/source/licence links, CLI descriptions and notifications were rebranded as
 APH Havoc Server Manager. The obsolete upstream website button was removed and public
-links now target https://github.com/Stryka2022/Km-Dayz-Suite. The companion version
-for these changes is 0.1.35-km.6.
+links now target https://github.com/Stryka2022/Km-Dayz-Suite. Server editors and the
+setup wizard were converted into inline embedded pages, and new instances gained
+friendly display names, unique safe folders, editable collision-free random ports and
+optional per-instance DayZ Dedicated Server installs. Windows/Linux platform, CPU,
+installed .NET SDK/runtime and .NET 11 detection were added to setup, About and the
+headless CLI. The companion version for these changes is 0.1.35-km.7.
 Original upstream authorship, copyright and GPL licensing are retained in this legal
 notice and the corresponding source history. Public distribution and modifications
 are presented under the APH Havoc name without claiming ownership of upstream work.

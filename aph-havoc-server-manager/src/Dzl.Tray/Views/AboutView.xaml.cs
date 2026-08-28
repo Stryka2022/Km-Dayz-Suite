@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using Dzl.Core.Env;
 using Dzl.Tray;
 
 namespace Dzl.Tray.Views;
@@ -15,6 +16,7 @@ public partial class AboutView : UserControl
     {
         InitializeComponent();
         VersionText.Text = "Version " + AppVersion();
+        RuntimeText.Text = DotNetEnvironmentDetector.Detect().Summary;
         if (App.IsKmSuiteEmbedded)
         {
             CheckUpdatesBtn.IsEnabled = false;

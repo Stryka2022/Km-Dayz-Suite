@@ -33,6 +33,12 @@ The GPL companion remains a separate process from the proprietary `KMSuite.exe` 
 the companion window for a single-window experience without linking or loading companion
 assemblies into the proprietary process.
 
+When embedded, the server editor and setup wizard stay inside the same KM window and the KM left
+rail provides direct access to instances, Workshop, notifications/updates, mods, economy,
+FTP/FTPS and RCon, logs, bases, tools, setup, MCP, settings and legal information. Instances have a
+friendly display name, unique safe folder, editable collision-free random port and optional isolated
+DayZ Dedicated Server installation.
+
 ## Build
 
 The Windows desktop app and CLI use the .NET SDK. From the corresponding-source directory:
@@ -52,6 +58,8 @@ identifiers, not the public product name.
 
 - Windows x64: full KM desktop integration and APH Havoc Server Manager workspace.
 - Linux x64: native headless `aph-havoc` CLI package for server-side management and validation.
+  Use `aph-havoc --version` for the release version and `aph-havoc environment` to report Linux,
+  architecture, installed SDK/runtime versions and .NET 11 availability (`--json` is supported).
 - Linux remote servers: manageable from Windows through the integrated FTP/FTPS and RCon pages.
 
 ## Repository layout

@@ -11,6 +11,8 @@
           <TextBlock Text="APH Havoc Server Manager" FontSize="24" FontWeight="SemiBold" />
           <TextBlock x:Name="VersionText" FontSize="13"
                      Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+          <TextBlock x:Name="RuntimeText" FontSize="11" TextWrapping="Wrap"
+                     Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
         </StackPanel>
       </StackPanel>
 
@@ -56,7 +58,7 @@
       </TextBlock>
       <TextBlock Text="APH Havoc public edition and KM integration © 2026 APH Havoc Survival." FontSize="12" Margin="0,4,0,0"
                  Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-      <TextBlock Text="Modified 25 August 2026 and distributed as APH Havoc Server Manager under GPL v3. Matching modified source is supplied with KM Suite and published on the APH Havoc GitHub repository. Original upstream copyright and attribution are preserved in Legal Notices as required by GPL v3."
+      <TextBlock Text="Modified 28 August 2026 and distributed as APH Havoc Server Manager under GPL v3. Matching modified source is supplied with KM Suite and published on the APH Havoc GitHub repository. Original upstream copyright and attribution are preserved in Legal Notices as required by GPL v3."
                  TextWrapping="Wrap" FontSize="12" Margin="0,4,0,0"
                  Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
 

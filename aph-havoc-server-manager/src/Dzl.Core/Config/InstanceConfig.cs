@@ -7,6 +7,15 @@ namespace Dzl.Core.Config;
 /// <see cref="DzlConfig"/> (a round-trip test guards drift).</remarks>
 public sealed record InstanceConfig
 {
+    /// <summary>Human-facing label. May contain spaces and punctuation.</summary>
+    public string DisplayName { get; init; } = "";
+
+    /// <summary>Filesystem-safe profile/folder key generated from the friendly label.</summary>
+    public string InstanceFolderName { get; init; } = "";
+
+    /// <summary>Optional dedicated DayZ Server install path for this instance.</summary>
+    public string ServerInstallPathOverride { get; init; } = "";
+
     public string ProfilesPath { get; init; } = @"E:\Steam\steamapps\common\DayZ\profiles";
     public string ClientProfilesPath { get; init; } = @"E:\Steam\steamapps\common\DayZ\profiles_client";
     public int Port { get; init; } = 2302;

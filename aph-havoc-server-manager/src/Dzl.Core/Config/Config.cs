@@ -9,6 +9,18 @@ public sealed record DzlConfig
     /// snake_case: dayz_server_path.</summary>
     public string DayzServerPath { get; init; } = "";
 
+    /// <summary>Human-facing label for this server instance. Empty preserves the profile/folder key
+    /// as the displayed name for older configurations. snake_case: display_name.</summary>
+    public string DisplayName { get; init; } = "";
+
+    /// <summary>Filesystem-safe, unique folder/profile key for this instance. Empty preserves the
+    /// active profile name for older configurations. snake_case: instance_folder_name.</summary>
+    public string InstanceFolderName { get; init; } = "";
+
+    /// <summary>Optional dedicated DayZ Server installation used only by this instance. Empty falls
+    /// back to the machine-wide DayZ server/client path. snake_case: server_install_path_override.</summary>
+    public string ServerInstallPathOverride { get; init; } = "";
+
     public string ProfilesPath { get; init; } = @"E:\Steam\steamapps\common\DayZ\profiles";
     public string ClientProfilesPath { get; init; } = @"E:\Steam\steamapps\common\DayZ\profiles_client";
     /// <summary>Single home for everything dzl creates — mod source projects at
@@ -141,6 +153,9 @@ public sealed record DzlConfig
     /// <summary>Extract the per-server slice.</summary>
     public InstanceConfig InstancePart() => new()
     {
+        DisplayName = DisplayName,
+        InstanceFolderName = InstanceFolderName,
+        ServerInstallPathOverride = ServerInstallPathOverride,
         ProfilesPath = ProfilesPath,
         ClientProfilesPath = ClientProfilesPath,
         Port = Port,
@@ -199,6 +214,9 @@ public sealed record DzlConfig
         WorkshopDir = g.WorkshopDir,
         SteamLogin = g.SteamLogin,
         SteamAccessToken = g.SteamAccessToken,
+        DisplayName = i.DisplayName,
+        InstanceFolderName = i.InstanceFolderName,
+        ServerInstallPathOverride = i.ServerInstallPathOverride,
         ProfilesPath = i.ProfilesPath,
         ClientProfilesPath = i.ClientProfilesPath,
         Port = i.Port,

@@ -6,6 +6,7 @@ using Dzl.Core.Config;
 using Dzl.Core.Env;
 using Dzl.Core.Projects;
 using Dzl.Core.Servers;
+using Dzl.Core.Workshop;
 
 namespace Dzl.Tray.ViewModels;
 
@@ -30,19 +31,44 @@ public partial class MainViewModel
     /// <summary>Create a new server instance (scaffold + atomic preset) and reload so it's active.
     /// <paramref name="baseName"/> = a base/template to copy from, or null for the DayZ install.
     /// Returns a status line.</summary>
-    public async Task<string> CreateServerAsync(string name, string map, int? port,
+    public async Task<string> CreateServerAsync(string displayName, string folderName, string map, int? port,
                                                 string? baseName = null, string? modPreset = null,
-                                                bool offline = false)
+                                                bool offline = false, string? dedicatedInstallPath = null,
+                                                bool installDedicatedServer = false)
     {
         var cp = _configPath;
         // The mission-template copy can be hundreds of MB — run it off the UI thread; the
         // active-preset reload + server-list refresh hop back afterward.
         var res = await Task.Run(() => new ServerService(cp).Create(
-            name, map, port, activate: true, baseName: baseName, modPreset: modPreset, offline: offline));
+            folderName, map, port, activate: true, baseName: baseName, modPreset: modPreset, offline: offline,
+            displayName: displayName, instanceFolderName: folderName,
+            serverInstallPathOverride: dedicatedInstallPath));
+        var installMessage = "";
+        if (res.Ok && installDedicatedServer && !string.IsNullOrWhiteSpace(dedicatedInstallPath))
+        {
+            var install = await DedicatedServerInstaller.InstallAsync(cp, dedicatedInstallPath!);
+            installMessage = install.ok ? $"; {install.message}" : $"; dedicated install failed: {install.message}";
+        }
         Reload();              // active preset changed → refresh mods/paths/preset list
         RefreshServers();
-        return res.Ok ? $"✓ {res.Message}  (port {res.Port})" : $"✗ {res.Message}";
+        return res.Ok ? $"✓ {res.Message}  (port {res.Port}){installMessage}" : $"✗ {res.Message}";
     }
+
+    /// <summary>Preview the filesystem-safe key generated from a friendly display name.</summary>
+    public static string SuggestInstanceFolder(string displayName) => ProjectPaths.SafeInstanceName(displayName);
+
+    /// <summary>Suggest a random free server port across all saved instances.</summary>
+    public int SuggestServerPort()
+    {
+        var used = Profiles.List(_configPath)
+            .Select(n => { try { return Profiles.Load(n, _configPath).Port; } catch { return 0; } })
+            .Where(p => p > 0);
+        return ServerInstances.RandomPort(used);
+    }
+
+    /// <summary>Default per-instance DayZ Dedicated Server install folder.</summary>
+    public string SuggestDedicatedInstallPath(string folderName) =>
+        Path.Combine(ProjectPaths.ServerDir(ProjectsRoot, ProjectPaths.SafeInstanceName(folderName)), "server-install");
 
     /// <summary>Switch the active preset to a server instance's preset (by name).</summary>
     public string UseServer(string name)

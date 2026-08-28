@@ -31,9 +31,11 @@ public static class ProcessManager
     public static string ServerExe(DzlConfig c, string mode) => mode == "debug" ? c.ExeDebug : c.ExeNormal;
     public static string ClientExe(DzlConfig c, string mode) => mode == "debug" ? c.ClientExeDebug : c.ClientExeNormal;
 
-    /// <summary>Install dir for the dedicated server (normal mode). Falls back to <see cref="DzlConfig.DayzPath"/>.</summary>
+    /// <summary>Install dir for the dedicated server (normal mode). An instance override wins, then
+    /// the machine-wide dedicated install, then the DayZ client install.</summary>
     public static string ServerInstallPath(DzlConfig c) =>
-        string.IsNullOrWhiteSpace(c.DayzServerPath) ? c.DayzPath : c.DayzServerPath.Trim();
+        !string.IsNullOrWhiteSpace(c.ServerInstallPathOverride) ? c.ServerInstallPathOverride.Trim() :
+        !string.IsNullOrWhiteSpace(c.DayzServerPath) ? c.DayzServerPath.Trim() : c.DayzPath;
 
     public static Process Spawn(string mode, string target, DzlConfig cfg, string source = "cli", string? configPath = null, bool connect = true)
     {

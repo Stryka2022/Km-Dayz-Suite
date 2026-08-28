@@ -284,6 +284,12 @@
           <!-- ===== SERVERS (instances) ===== -->
           <views:ServersView x:Name="PageServers" Visibility="Collapsed" />
 
+          <!-- ===== INLINE SERVER EDITOR (Settings / Mods / Params) ===== -->
+          <ContentControl x:Name="PageServerEditor" Visibility="Collapsed" />
+
+          <!-- ===== INLINE SETUP / INSTALLED CHECK ===== -->
+          <ContentControl x:Name="PageSetup" Visibility="Collapsed" />
+
           <!-- ===== BASES (templates) ===== -->
           <views:BasesView x:Name="PageBases" Visibility="Collapsed" />
 

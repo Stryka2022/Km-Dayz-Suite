@@ -16,6 +16,7 @@ Command[] commands =
     LifecycleCommands.Restart(context),
     LogsStatusCommands.Logs(context),
     LogsStatusCommands.Status(context),
+    EnvironmentCommands.Environment(),
     ConfigCommands.Config(context),
     PresetCommands.Preset(context),
     ModPresetCommands.ModPreset(context),

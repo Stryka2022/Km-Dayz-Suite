@@ -12,6 +12,19 @@ public static partial class ProjectPaths
     /// <summary>A valid mod / instance name: starts with a letter, then letters/digits/underscores, max 64.</summary>
     public static bool IsValidName(string? name) => !string.IsNullOrEmpty(name) && NameRx().IsMatch(name);
 
+    /// <summary>Turn a human-facing server name into a safe profile/folder key. The friendly name is
+    /// retained separately, so this value is deliberately stable and conservative for Windows and Linux.</summary>
+    public static string SafeInstanceName(string? value)
+    {
+        var source = (value ?? "").Trim();
+        var safe = Regex.Replace(source, "[^A-Za-z0-9_]+", "_").Trim('_');
+        safe = Regex.Replace(safe, "_+", "_");
+        if (safe.Length == 0) safe = "Server";
+        if (!char.IsLetter(safe[0])) safe = "Server_" + safe;
+        if (safe.Length > 64) safe = safe[..64].TrimEnd('_');
+        return IsValidName(safe) ? safe : "Server";
+    }
+
     /// <summary>Pure: configured root if set, else <paramref name="userProfile"/>\DayZProjects.</summary>
     public static string Root(string? configured, string userProfile) =>
         string.IsNullOrWhiteSpace(configured) ? Path.Combine(userProfile, "DayZProjects") : configured;

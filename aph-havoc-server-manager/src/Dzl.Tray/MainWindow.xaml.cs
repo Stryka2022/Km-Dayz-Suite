@@ -45,6 +45,9 @@ public partial class MainWindow : FluentWindow
     private string? _kmNavigationFile;
     private string? _lastKmNavigationRequest;
     private FrameworkElement? _visiblePage;
+    private string _serverEditorReturnPage = "servers";
+    private string _setupReturnPage = "dashboard";
+    private SetupWizardWindow? _embeddedSetupWizard;
 
     public MainWindow()
     {
@@ -340,6 +343,8 @@ public partial class MainWindow : FluentWindow
             "remote" => PageRemoteFiles,
             "mymods" => PageMyMods,
             "servers" => PageServers,
+            "servereditor" => PageServerEditor,
+            "setupinline" => PageSetup,
             "bases" => PageBases,
             "economy" => PageEconomy,
             "logs" => PageLogs,
@@ -359,7 +364,7 @@ public partial class MainWindow : FluentWindow
             foreach (var page in new FrameworkElement[]
                      {
                          PageDashboard, PageMods, PageWorkshop, PageNotifications, PageRemoteFiles, PageMyMods,
-                         PageServers, PageBases, PageEconomy, PageLogs, PageTools, PageMcp,
+                         PageServers, PageServerEditor, PageSetup, PageBases, PageEconomy, PageLogs, PageTools, PageMcp,
                          PageSettings, PageAbout
                      })
                 page.Visibility = Visibility.Collapsed;
@@ -375,6 +380,25 @@ public partial class MainWindow : FluentWindow
         if (tag == "remote") PageRemoteFiles.RefreshOnShow();
         if (tag == "notifications") PageNotifications.Reload();
         if (tag == "settings") { PageSettings.Reload(); _ = _vm.RefreshGitHubAuthAsync(); _vm.RefreshSteamAccount(); }
+    }
+
+    /// <summary>Open the active instance editor inside the current Server Manager window.</summary>
+    internal void OpenServerEditor(int tab, string returnPage = "servers")
+    {
+        _serverEditorReturnPage = returnPage;
+        PageServerEditor.Content = new ServerEditorWindow(_vm, tab, CloseServerEditor);
+        _currentPageTag = "servereditor";
+        foreach (var rail in NavRails) rail.SelectedItem = null;
+        ShowPage("servereditor");
+    }
+
+    private void CloseServerEditor()
+    {
+        PageServerEditor.Content = null;
+        _vm.RefreshServers();
+        _currentPageTag = _serverEditorReturnPage;
+        ShowPage(_serverEditorReturnPage);
+        RestoreNavToCurrentPage();
     }
 
     // --- Economy window (modeless, single instance) ------------------------
@@ -436,13 +460,36 @@ public partial class MainWindow : FluentWindow
     /// "Run setup wizard…" button (SettingsView) and the "Setup" nav-rail item.</summary>
     internal void OpenSetupWizard()
     {
+        if (App.IsKmSuiteEmbedded)
+        {
+            _setupReturnPage = _currentPageTag is "setupinline" or "servereditor" ? "dashboard" : _currentPageTag;
+            _embeddedSetupWizard = new SetupWizardWindow(App.ConfigPath());
+            PageSetup.Content = _embeddedSetupWizard.CreateEmbedded(CloseEmbeddedSetup);
+            _currentPageTag = "setupinline";
+            ShowPage("setupinline");
+            return;
+        }
         var wizard = new SetupWizardWindow(App.ConfigPath());
-        if (!App.IsKmSuiteEmbedded) wizard.Owner = this;
+        wizard.Owner = this;
         if (wizard.ShowDialog() == true)
         {
             _vm.Reload();
             PageSettings.Reload();
         }
+    }
+
+    private void CloseEmbeddedSetup(bool saved)
+    {
+        PageSetup.Content = null;
+        _embeddedSetupWizard = null;
+        if (saved)
+        {
+            _vm.Reload();
+            PageSettings.Reload();
+        }
+        _currentPageTag = _setupReturnPage;
+        ShowPage(_setupReturnPage);
+        RestoreNavToCurrentPage();
     }
 
     /// <summary>Re-read the global Settings page from the live config. Called by the Mods / My Mods

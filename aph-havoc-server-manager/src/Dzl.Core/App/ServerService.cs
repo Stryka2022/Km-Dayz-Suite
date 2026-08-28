@@ -26,7 +26,8 @@ public sealed class ServerService
                 var cfg = Profiles.Load(name, _configPath);
                 var cfgPath = cfg.ConfigName;
                 var dir = Path.GetDirectoryName(cfgPath) ?? "";
-                list.Add(new ServerInstance(name, dir, cfgPath, cfg.OfflineMode));
+                list.Add(new ServerInstance(name, dir, cfgPath, cfg.OfflineMode,
+                    cfg.DisplayName, cfg.ServerInstallPathOverride, cfg.Port));
             }
             catch { /* skip unreadable instance */ }
         }
@@ -36,21 +37,39 @@ public sealed class ServerService
     /// <summary>Scaffold a new server instance (from a base/template if given, else from the DayZ install)
     /// and save it as a preset (atomically), optionally activating it.</summary>
     public CreateServerResult Create(string name, string map, int? port = null, bool activate = true,
-                                     string? baseName = null, string? modPreset = null, bool offline = false)
+                                     string? baseName = null, string? modPreset = null, bool offline = false,
+                                     string? displayName = null, string? instanceFolderName = null,
+                                     string? serverInstallPathOverride = null)
     {
         Profiles.EnsureDefault(_configPath);
-        if (!ProjectPaths.IsValidName(name))
-            return new CreateServerResult(false, name, "", 0, $"invalid instance name: {name}");
+        var friendlyName = string.IsNullOrWhiteSpace(displayName) ? name.Trim() : displayName.Trim();
+        if (friendlyName.Length == 0)
+            return new CreateServerResult(false, name, "", 0, "enter a server display name");
+        var safeName = ProjectPaths.SafeInstanceName(
+            string.IsNullOrWhiteSpace(instanceFolderName) ? name : instanceFolderName);
 
         var (baseCfg, _, _) = Profiles.ResolveActive(_configPath);
         var root = ProjectPaths.Root(baseCfg);
-        var instanceDir = ProjectPaths.ServerDir(root, name);
+        var instanceDir = ProjectPaths.ServerDir(root, safeName);
         var template = MapAliases.MissionTemplate(map);
+
+        if (Profiles.List(_configPath).Contains(safeName, StringComparer.OrdinalIgnoreCase))
+            return new CreateServerResult(false, safeName, instanceDir, 0,
+                $"an instance using folder/profile name '{safeName}' already exists");
+        if (Directory.Exists(instanceDir))
+            return new CreateServerResult(false, safeName, instanceDir, 0,
+                $"the folder '{instanceDir}' already exists; choose another folder name");
 
         var usedPorts = Profiles.List(_configPath)
             .Select(n => { try { return Profiles.Load(n, _configPath).Port; } catch { return 0; } })
-            .Where(p => p > 0);
-        var chosenPort = port ?? ServerInstances.NextPort(usedPorts);
+            .Where(p => p > 0)
+            .ToHashSet();
+        if (port is < 1024 or > 65535)
+            return new CreateServerResult(false, safeName, instanceDir, 0, "port must be between 1024 and 65535");
+        if (port is { } requestedPort && usedPorts.Contains(requestedPort))
+            return new CreateServerResult(false, safeName, instanceDir, 0,
+                $"port {requestedPort} is already used by another instance");
+        var chosenPort = port ?? ServerInstances.RandomPort(usedPorts);
 
         string sourceNote;
         if (!string.IsNullOrWhiteSpace(baseName) && ServerBases.Exists(root, baseName!))
@@ -81,7 +100,14 @@ public sealed class ServerService
         // Repoint Mission at the new instance. ServerPreset.Build can't (it's pure, no disk) — without this
         // the new instance inherits the active preset's Mission, which may be an absolute path to ANOTHER
         // instance, so every new server would point at the old one's mpmissions.
-        var cfg = ServerPreset.Build(baseCfg, instanceDir, chosenPort) with { Mission = instMission, OfflineMode = offline };
+        var cfg = ServerPreset.Build(baseCfg, instanceDir, chosenPort) with
+        {
+            Mission = instMission,
+            OfflineMode = offline,
+            DisplayName = friendlyName,
+            InstanceFolderName = safeName,
+            ServerInstallPathOverride = (serverInstallPathOverride ?? "").Trim(),
+        };
         if (!string.IsNullOrWhiteSpace(modPreset))
         {
             if (ModPresetStore.Load(modPreset!, _configPath) is { } loadout)
@@ -89,10 +115,11 @@ public sealed class ServerService
             else
                 sourceNote += $"; mod preset '{modPreset}' not found — not applied";
         }
-        Profiles.Save(cfg, name, _configPath);
-        if (activate) Profiles.SetActive(name, _configPath);
+        Profiles.Save(cfg, safeName, _configPath);
+        if (activate) Profiles.SetActive(safeName, _configPath);
 
-        return new CreateServerResult(true, name, instanceDir, chosenPort, $"instance created {sourceNote}");
+        return new CreateServerResult(true, safeName, instanceDir, chosenPort,
+            $"'{friendlyName}' created as '{safeName}' {sourceNote}");
     }
 
     /// <summary>List the available bases (templates) under the active ProjectsRoot.</summary>

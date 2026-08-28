@@ -37,6 +37,7 @@ public partial class SetupWizardWindow : FluentWindow
     private const int LastStep = FinishStep;
     private readonly string _configPath;
     private int _step;
+    private Action<bool>? _embeddedClose;
 
     private readonly Border[] _stepRows;
     private readonly UIElement[] _pages;
@@ -52,6 +53,16 @@ public partial class SetupWizardWindow : FluentWindow
         _pages = new UIElement[] { Page0, PageCheck, Page1, PageProj, Page2, Page3, Page4, Page6, Page7 };
 
         Loaded += (_, _) => ShowStep(0);
+    }
+
+    /// <summary>Detach the wizard surface so KM Suite can host setup in its one app window.</summary>
+    internal UIElement CreateEmbedded(Action<bool> close)
+    {
+        _embeddedClose = close;
+        var content = (UIElement)Content;
+        Content = null;
+        ShowStep(0);
+        return content;
     }
 
     // ---- Step navigation ------------------------------------------------
@@ -203,7 +214,11 @@ public partial class SetupWizardWindow : FluentWindow
 
     private void OnBack(object sender, RoutedEventArgs e) => ShowStep(_step - 1);
     private void OnNext(object sender, RoutedEventArgs e) => ShowStep(_step + 1);
-    private void OnCancel(object sender, RoutedEventArgs e) { DialogResult = false; Close(); }
+    private void OnCancel(object sender, RoutedEventArgs e)
+    {
+        if (_embeddedClose is not null) _embeddedClose(false);
+        else { DialogResult = false; Close(); }
+    }
 
     /// <summary>Next is gated only on the Paths step: DayZ install must be a real directory.
     /// Every later step is skippable, so Next stays enabled there.</summary>
@@ -730,15 +745,15 @@ public partial class SetupWizardWindow : FluentWindow
             Profiles.SetActive("default", _configPath);
         }
 
-        DialogResult = true;
-        Close();
+        if (_embeddedClose is not null) _embeddedClose(true);
+        else { DialogResult = true; Close(); }
     }
 
     // ---- Shared folder picker (Tag = target TextBox x:Name) -------------
 
     private void OnBrowseFolder(object sender, RoutedEventArgs e)
     {
-        if (sender is not FrameworkElement { Tag: string name }) return;
+        if (sender is not FrameworkElement { Tag: string name } source) return;
         try
         {
             var dlg = new OpenFolderDialog();
@@ -750,7 +765,7 @@ public partial class SetupWizardWindow : FluentWindow
                 if (!string.IsNullOrEmpty(current) && Directory.Exists(current))
                     dlg.InitialDirectory = current;
             }
-            if (dlg.ShowDialog(this) == true && FindName(name) is TextBox tb)
+            if (dlg.ShowDialog(Window.GetWindow(source)) == true && FindName(name) is TextBox tb)
                 tb.Text = dlg.FolderName;
         }
         catch (Exception ex)

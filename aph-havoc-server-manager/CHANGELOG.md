@@ -4,6 +4,26 @@ All notable changes to dzl are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the app is versioned by
 git tag (`v*`), which the release workflow turns into a Velopack release.
 
+## [0.1.35-km.7] - 2026-08-28
+
+### Added
+- **Single-window KM integration.** The active server editor and setup wizard now render as inline
+  Server Manager pages. The KM left rail remains the sole visible navigation while embedded, with
+  direct destinations for instances, Workshop, notifications and updates, mods, economy, FTP/RCon,
+  logs, bases, tools, setup, MCP, settings and legal information.
+- **Friendly isolated instances.** New servers accept a display name, a filesystem-safe unique
+  folder name, an editable collision-free random port, and an optional per-instance DayZ Dedicated
+  Server installation.
+- **Cross-platform runtime reporting.** Setup/About report Windows or Linux, CPU architecture,
+  installed .NET SDKs/runtimes and .NET 11 availability. The headless CLI exposes the same probe as
+  `aph-havoc environment` (or `env`), with optional `--json` output.
+
+### Changed
+- Embedded navigation uses a registered Windows message with a small file-channel startup fallback,
+  avoiding duplicate page loads and visible white transition frames.
+- The complete GPL application, notices, licence and matching modified source remain packaged as a
+  separate process beneath `ThirdParty/APH-Havoc-Server-Manager`.
+
 ## [0.1.35] - 2026-07-08
 
 ### Added

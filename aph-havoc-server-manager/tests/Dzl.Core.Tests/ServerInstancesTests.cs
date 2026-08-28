@@ -25,4 +25,13 @@ public class ServerInstancesTests
     [InlineData(new[] { 2302, 2303, 2305 }, 2304)]
     public void NextPort_picks_first_free_from_2302(int[] used, int expected)
         => ServerInstances.NextPort(used).Should().Be(expected);
+
+    [Fact]
+    public void RandomPort_stays_in_range_and_avoids_used_ports()
+    {
+        var used = Enumerable.Range(2302, 50).ToArray();
+        var selected = ServerInstances.RandomPort(used, 2302, 2400);
+        selected.Should().BeInRange(2302, 2400);
+        used.Should().NotContain(selected);
+    }
 }

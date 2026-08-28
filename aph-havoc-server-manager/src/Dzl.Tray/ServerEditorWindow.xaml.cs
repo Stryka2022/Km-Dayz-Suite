@@ -3,25 +3,26 @@ using System.Windows;
 using System.Windows.Controls;
 using Dzl.Tray.ViewModels;
 using Microsoft.Win32;
-using Wpf.Ui.Controls;
 using TextBox = System.Windows.Controls.TextBox;
 
 namespace Dzl.Tray;
 
 /// <summary>
-/// Per-server modal editor (Settings / Mods / Params tabs) for the ACTIVE server instance.
-/// Opened from the Servers page; <see cref="MainViewModel"/> is shared so the loadout grid, params
-/// and per-server fields all read/write the active instance. Closing returns to the (clean) Servers list.
+/// Inline per-server editor (Settings / Mods / Params tabs) for the ACTIVE server instance.
+/// <see cref="MainViewModel"/> is shared so the loadout grid, params and per-server fields all
+/// read/write the active instance without opening another application window.
 /// </summary>
-public partial class ServerEditorWindow : FluentWindow
+public partial class ServerEditorWindow : UserControl
 {
     private readonly MainViewModel _vm;
+    private readonly Action _close;
 
     /// <param name="tab">0 = Settings, 1 = Mods, 2 = Params.</param>
-    public ServerEditorWindow(MainViewModel vm, int tab)
+    public ServerEditorWindow(MainViewModel vm, int tab, Action close)
     {
         InitializeComponent();
         _vm = vm;
+        _close = close;
         DataContext = vm;
         Loaded += (_, _) =>
         {
@@ -130,7 +131,7 @@ public partial class ServerEditorWindow : FluentWindow
             new[] { _vm.ActiveServerDir, CurrentDayzPath() }, Directory.Exists);
         var dlg = new OpenFolderDialog();
         if (!string.IsNullOrEmpty(start)) dlg.InitialDirectory = start;
-        if (dlg.ShowDialog(this) != true) return;
+        if (dlg.ShowDialog(Window.GetWindow(this)) != true) return;
         if (FindName(name) is TextBox tb) tb.Text = dlg.FolderName;
     }
 
@@ -141,7 +142,7 @@ public partial class ServerEditorWindow : FluentWindow
             new[] { Path.Combine(_vm.ActiveServerDir, "mpmissions"), Path.Combine(dayz, "mpmissions"), dayz },
             Directory.Exists);
         var dlg = new OpenFolderDialog { InitialDirectory = start };
-        if (dlg.ShowDialog(this) == true) CfgMission.Text = RelOrAbs(dlg.FolderName, dayz);
+        if (dlg.ShowDialog(Window.GetWindow(this)) == true) CfgMission.Text = RelOrAbs(dlg.FolderName, dayz);
     }
 
     private void OnBrowseConfigName(object sender, RoutedEventArgs e)
@@ -154,7 +155,7 @@ public partial class ServerEditorWindow : FluentWindow
             Filter = "Server config (*.cfg)|*.cfg|All files (*.*)|*.*",
             InitialDirectory = start,
         };
-        if (dlg.ShowDialog(this) == true) CfgConfigName.Text = RelOrAbs(dlg.FileName, dayz);
+        if (dlg.ShowDialog(Window.GetWindow(this)) == true) CfgConfigName.Text = RelOrAbs(dlg.FileName, dayz);
     }
 
     private string CurrentDayzPath() => _vm.Cfg.DayzPath;
@@ -187,5 +188,5 @@ public partial class ServerEditorWindow : FluentWindow
         WipeStatus.Text = _vm.WipeActivePersistence();
     }
 
-    private void OnClose(object sender, RoutedEventArgs e) => Close();
+    private void OnClose(object sender, RoutedEventArgs e) => _close();
 }

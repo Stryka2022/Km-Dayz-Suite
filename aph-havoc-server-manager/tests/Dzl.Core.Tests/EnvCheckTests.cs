@@ -75,4 +75,26 @@ public class EnvCheckTests
         var act = () => EnvCheck.Run(DzlConfig.Default() with { DayzPath = "", ScanRoots = new() { "" } }, () => false);
         act.Should().NotThrow();
     }
+
+    [Fact]
+    public void Reports_dotnet_11_and_platform_from_injected_probe()
+    {
+        var cfg = CfgIn(Directory.CreateTempSubdirectory().FullName);
+        var present = new DotNetEnvironment("Linux", "X64", "11.0.1", ["11.0.100"], ["11.0.1"]);
+        var missing = new DotNetEnvironment("Windows", "X64", "10.0.11", ["10.0.100"], ["10.0.11"]);
+
+        EnvCheck.Run(cfg, () => true, () => true, () => present)
+            .Should().Contain(i => i.Key == "dotnet_11" && i.Ok && i.Detail.Contains("Linux"));
+        EnvCheck.Run(cfg, () => true, () => true, () => missing)
+            .Should().Contain(i => i.Key == "dotnet_11" && !i.Ok && i.Detail.Contains("not installed"));
+    }
+
+    [Fact]
+    public void Dotnet_summary_distinguishes_partial_discovery_from_missing_command()
+    {
+        new DotNetEnvironment("Linux", "X64", "", [], ["11.0.0"])
+            .Summary.Should().Contain("host version unavailable").And.Contain(".NET 11 detected");
+        new DotNetEnvironment("Linux", "X64", "", [], [])
+            .Summary.Should().Contain("command not found").And.Contain(".NET 11 not installed");
+    }
 }

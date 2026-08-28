@@ -14,10 +14,23 @@ public static class EnvCheck
     /// exception is reported as a failed item with the message in Detail.</summary>
     /// <param name="workdriveMounted">Stub for the P: check; defaults to the real WorkDrive.IsMounted().</param>
     /// <param name="toolsRegistered">Stub for the DayZ Tools registry check; defaults to EnvDetect.ToolsRegistered().</param>
-    public static List<CheckItem> Run(DzlConfig cfg, Func<bool>? workdriveMounted = null, Func<bool>? toolsRegistered = null)
+    public static List<CheckItem> Run(
+        DzlConfig cfg,
+        Func<bool>? workdriveMounted = null,
+        Func<bool>? toolsRegistered = null,
+        Func<DotNetEnvironment>? dotNetProbe = null)
     {
         var items = new List<CheckItem>();
         Func<bool> isMounted = workdriveMounted ?? (() => WorkDrive.IsMounted());
+
+        // Runtime/platform inventory. The desktop build is self-contained, but showing this here
+        // lets Windows and Linux server owners confirm whether the requested .NET 11 toolchain is
+        // already available for scripts, source builds and future framework-dependent utilities.
+        items.Add(Check("dotnet_11", ".NET 11 SDK / runtime", CheckSeverity.Warning, () =>
+        {
+            var environment = dotNetProbe is null ? DotNetEnvironmentDetector.Detect() : dotNetProbe();
+            return (environment.HasMajor11, environment.Summary);
+        }));
 
         // 1. DayZ install
         items.Add(Check("dayz_install", "DayZ install", CheckSeverity.Error, () =>

@@ -11,7 +11,7 @@
   <!-- Servers page (instances). DataContext = MainViewModel (inherited from the host window).
        Each server instance is its own config; selecting one makes it active and edits via
        the modal ServerEditorWindow. -->
-  <Grid>
+  <Grid Loaded="OnLoaded">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
@@ -33,35 +33,73 @@
             <TextBlock Text="New instance" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
             <Grid Margin="0,0,0,8">
               <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="2*" MinWidth="240" />
+                <ColumnDefinition Width="2*" MinWidth="210" />
+                <ColumnDefinition Width="130" />
+                <ColumnDefinition Width="190" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                <TextBlock Text="Server display name" FontSize="11" Margin="2,0,0,4" />
+                <ui:TextBox x:Name="NewServerNameBox" PlaceholderText="My Chernarus PvE Server"
+                            TextChanged="OnDisplayNameChanged" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                <TextBlock Text="Safe folder / profile name" FontSize="11" Margin="2,0,0,4" />
+                <ui:TextBox x:Name="NewServerFolderBox" PlaceholderText="My_Chernarus_PvE_Server"
+                            TextChanged="OnFolderNameChanged" />
+              </StackPanel>
+              <StackPanel Grid.Column="2" Margin="0,0,10,0">
+                <TextBlock Text="Map" FontSize="11" Margin="2,0,0,4" />
+                <ComboBox x:Name="NewServerMapBox" VerticalAlignment="Center"
+                          ToolTip="Map for vanilla instances. A base already fixes its own map."
+                          ItemsSource="{Binding Maps}" SelectedIndex="0" />
+              </StackPanel>
+              <StackPanel Grid.Column="3">
+                <TextBlock Text="Template / base" FontSize="11" Margin="2,0,0,4" />
+                <ComboBox x:Name="NewServerBaseBox" VerticalAlignment="Center"
+                          ToolTip="Create from a base/template, or the DayZ install"
+                          ItemsSource="{Binding BaseChoices}" SelectedIndex="0"
+                          SelectionChanged="OnNewServerBaseChanged" />
+              </StackPanel>
+            </Grid>
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="200" />
+                <ColumnDefinition Width="190" />
+                <ColumnDefinition Width="130" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
-              <ui:TextBox x:Name="NewServerNameBox" Grid.Column="0" Margin="0,0,8,0"
-                          PlaceholderText="instance name (e.g. pvp, hardcore)" />
-              <ComboBox x:Name="NewServerMapBox" Grid.Column="1" Width="120" Margin="0,0,8,0"
-                        VerticalAlignment="Center"
-                        ToolTip="Map for vanilla instances. A base already fixes its own map, so this is locked when a base is selected."
-                        ItemsSource="{Binding Maps}" SelectedIndex="0" />
-              <ComboBox x:Name="NewServerBaseBox" Grid.Column="2" Width="170" Margin="0,0,8,0"
-                        VerticalAlignment="Center" ToolTip="Create from a base/template (brings its own map), or the DayZ install"
-                        ItemsSource="{Binding BaseChoices}" SelectedIndex="0"
-                        SelectionChanged="OnNewServerBaseChanged" />
-              <ComboBox x:Name="NewServerModsBox" Grid.Column="3" Width="150" Margin="0,0,8,0"
-                        VerticalAlignment="Center"
-                        ToolTip="Optionally apply a saved mod loadout to the new server"
-                        ItemsSource="{Binding ModPresetChoices}" SelectedIndex="0" />
-              <ui:TextBox x:Name="NewServerPortBox" Grid.Column="4" Width="80" Margin="0,0,8,0"
-                          PlaceholderText="port (auto)" />
-              <ui:Button x:Name="NewServerButton" Grid.Column="5" Content="Create" Appearance="Primary"
+              <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                <TextBlock Text="Mod loadout" FontSize="11" Margin="2,0,0,4" />
+                <ComboBox x:Name="NewServerModsBox" VerticalAlignment="Center"
+                          ToolTip="Optionally apply a saved mod loadout"
+                          ItemsSource="{Binding ModPresetChoices}" SelectedIndex="0" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                <TextBlock Text="Game port" FontSize="11" Margin="2,0,0,4" />
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                  <ui:TextBox x:Name="NewServerPortBox" Grid.Column="0" PlaceholderText="random" />
+                  <ui:Button Grid.Column="1" Margin="6,0,0,0" Icon="{ui:SymbolIcon ArrowSync24}"
+                             ToolTip="Choose another free random port" Click="OnRandomPort" />
+                </Grid>
+              </StackPanel>
+              <CheckBox x:Name="NewServerOfflineBox" Grid.Column="2" Margin="0,18,10,0" VerticalAlignment="Center"
+                        Content="Offline sandbox" ToolTip="Client-only: launches without -connect." />
+              <CheckBox x:Name="NewServerDedicatedBox" Grid.Column="3" Margin="0,18,12,0" VerticalAlignment="Center"
+                        Content="Dedicated install" Checked="OnDedicatedInstallChanged" Unchecked="OnDedicatedInstallChanged"
+                        ToolTip="Install/validate DayZ Dedicated Server with SteamCMD into this instance's own folder." />
+              <ui:Button x:Name="NewServerButton" Grid.Column="4" Margin="0,18,0,0" Content="Create" Appearance="Primary"
                          Icon="{ui:SymbolIcon Add24}" Click="OnCreateServer" />
             </Grid>
-            <CheckBox x:Name="NewServerOfflineBox" Margin="0,0,0,8"
-                      Content="Offline mode — client-only sandbox (no server; the game starts without -connect)"
-                      ToolTip="The instance scaffolds normally, but the dashboard hides the server card and the client always launches offline (mods + mission load, no auto-join)." />
+            <Grid x:Name="DedicatedInstallPanel" Margin="0,0,0,8" IsEnabled="False">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <ui:TextBox x:Name="NewServerInstallPathBox" Grid.Column="0" Margin="0,0,8,0"
+                          PlaceholderText="Per-instance DayZ Dedicated Server install folder" />
+              <ui:Button Grid.Column="1" Content="Browse…" Icon="{ui:SymbolIcon FolderOpen24}"
+                         Click="OnBrowseDedicatedInstall" />
+            </Grid>
             <TextBlock x:Name="NewServerStatus" FontSize="12" TextWrapping="Wrap"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
           </StackPanel>
@@ -108,7 +146,7 @@
                       </TextBlock>
                       <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
-                          <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                          <TextBlock Text="{Binding FriendlyName}" FontWeight="SemiBold" VerticalAlignment="Center" />
                           <Border CornerRadius="9" Padding="8,2" Margin="8,0,0,0" Background="{DynamicResource KmOrangeTintBrush}"
                                   VerticalAlignment="Center"
                                   ToolTip="Client-only offline sandbox — no server; the client starts without -connect"
@@ -116,8 +154,18 @@
                             <TextBlock Text="offline" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource KmOrangeBrush}" />
                           </Border>
                         </StackPanel>
-                        <TextBlock Text="{Binding Dir}" FontSize="11" TextTrimming="CharacterEllipsis"
-                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <TextBlock FontSize="11" TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}">
+                          <Run Text="Folder: "/><Run Text="{Binding FolderName}"/><Run Text="  •  Port "/><Run Text="{Binding Port}"/>
+                        </TextBlock>
+                        <TextBlock Text="{Binding InstallPath, StringFormat=Dedicated install: {0}}" FontSize="11"
+                                   TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextFillColorTertiaryBrush}">
+                          <TextBlock.Style>
+                            <Style TargetType="TextBlock"><Setter Property="Visibility" Value="Visible"/>
+                              <Style.Triggers><DataTrigger Binding="{Binding InstallPath}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers>
+                            </Style>
+                          </TextBlock.Style>
+                        </TextBlock>
                       </StackPanel>
                       <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                         <!-- Primary: Use (activate). Everything else under the ⋯ menu. -->

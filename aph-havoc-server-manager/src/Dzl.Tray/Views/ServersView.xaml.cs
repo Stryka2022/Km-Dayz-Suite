@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using Dzl.Core.Servers;
@@ -5,14 +6,65 @@ using Dzl.Tray.ViewModels;
 
 namespace Dzl.Tray.Views;
 
-/// <summary>Servers page (instances): create a server, activate one, and open its modal editor
+/// <summary>Servers page (instances): create a server, activate one, and open its inline editor
 /// (Settings / Mods / Params tabs). All state lives on <see cref="MainViewModel"/> (the inherited
 /// DataContext); destructive actions confirm first.</summary>
 public partial class ServersView : UserControl
 {
     private MainViewModel? Vm => DataContext as MainViewModel;
 
+    private bool _updatingFolderName;
+    private bool _folderNameWasEdited;
+
     public ServersView() => InitializeComponent();
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        if (Vm is null || NewServerPortBox.Text.Length > 0) return;
+        NewServerPortBox.Text = Vm.SuggestServerPort().ToString();
+    }
+
+    private void OnDisplayNameChanged(object sender, TextChangedEventArgs e)
+    {
+        if (Vm is null || NewServerFolderBox is null || _folderNameWasEdited) return;
+        _updatingFolderName = true;
+        NewServerFolderBox.Text = MainViewModel.SuggestInstanceFolder(NewServerNameBox.Text);
+        _updatingFolderName = false;
+        UpdateDedicatedInstallSuggestion();
+    }
+
+    private void OnFolderNameChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_updatingFolderName && NewServerFolderBox?.IsKeyboardFocusWithin == true)
+            _folderNameWasEdited = true;
+        UpdateDedicatedInstallSuggestion();
+    }
+
+    private void OnRandomPort(object sender, RoutedEventArgs e)
+    {
+        if (Vm is not null) NewServerPortBox.Text = Vm.SuggestServerPort().ToString();
+    }
+
+    private void OnDedicatedInstallChanged(object sender, RoutedEventArgs e)
+    {
+        if (DedicatedInstallPanel is null) return;
+        DedicatedInstallPanel.IsEnabled = NewServerDedicatedBox.IsChecked == true;
+        UpdateDedicatedInstallSuggestion();
+    }
+
+    private void UpdateDedicatedInstallSuggestion()
+    {
+        if (Vm is null || NewServerDedicatedBox?.IsChecked != true || NewServerInstallPathBox is null) return;
+        if (!NewServerInstallPathBox.IsKeyboardFocusWithin || string.IsNullOrWhiteSpace(NewServerInstallPathBox.Text))
+            NewServerInstallPathBox.Text = Vm.SuggestDedicatedInstallPath(NewServerFolderBox.Text);
+    }
+
+    private void OnBrowseDedicatedInstall(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Choose this instance's DayZ Dedicated Server folder" };
+        if (Directory.Exists(NewServerInstallPathBox.Text)) dlg.InitialDirectory = NewServerInstallPathBox.Text;
+        if (dlg.ShowDialog(Window.GetWindow(this)) == true) NewServerInstallPathBox.Text = dlg.FolderName;
+    }
 
     // Re-entrancy guard for the create-server flow (button disabled while it runs, but a fast
     // double-tap before the first frame renders could still re-enter).
@@ -21,22 +73,44 @@ public partial class ServersView : UserControl
     private async void OnCreateServer(object sender, RoutedEventArgs e)
     {
         if (Vm is null || _creatingServer) return;
-        var name = NewServerNameBox.Text.Trim();
-        if (name.Length == 0) { NewServerStatus.Text = "Enter an instance name."; return; }
+        var displayName = NewServerNameBox.Text.Trim();
+        if (displayName.Length == 0) { NewServerStatus.Text = "Enter a server display name."; return; }
+        var folderName = MainViewModel.SuggestInstanceFolder(NewServerFolderBox.Text);
         var map = (NewServerMapBox.SelectedItem as string) ?? "chernarus";
-        int? port = int.TryParse(NewServerPortBox.Text.Trim(), out var p) ? p : null;
+        int? port = null;
+        if (NewServerPortBox.Text.Trim().Length > 0)
+        {
+            if (!int.TryParse(NewServerPortBox.Text.Trim(), out var p) || p is < 1024 or > 65535)
+            {
+                NewServerStatus.Text = "Enter a port from 1024 to 65535, or use the random button.";
+                return;
+            }
+            port = p;
+        }
         var baseSel = NewServerBaseBox.SelectedItem as string;
         var baseName = (string.IsNullOrEmpty(baseSel) || baseSel == MainViewModel.VanillaChoice) ? null : baseSel;
         var modsSel = NewServerModsBox.SelectedItem as string;
         var modPreset = (string.IsNullOrEmpty(modsSel) || modsSel == MainViewModel.NoModPresetChoice) ? null : modsSel;
         var offline = NewServerOfflineBox.IsChecked == true;
+        var installDedicated = NewServerDedicatedBox.IsChecked == true;
+        var installPath = installDedicated ? NewServerInstallPathBox.Text.Trim() : null;
         _creatingServer = true;
         NewServerButton.IsEnabled = false;
-        NewServerStatus.Text = "creating… (copying mission template — this can take a moment)";
-        try { NewServerStatus.Text = await Vm.CreateServerAsync(name, map, port, baseName, modPreset, offline); }
+        NewServerStatus.Text = installDedicated
+            ? "creating instance and installing DayZ Dedicated Server with SteamCMD…"
+            : "creating… (copying mission template — this can take a moment)";
+        try { NewServerStatus.Text = await Vm.CreateServerAsync(displayName, folderName, map, port, baseName, modPreset, offline, installPath, installDedicated); }
         catch (Exception ex) { NewServerStatus.Text = "✗ " + ex.Message; }
         finally { NewServerButton.IsEnabled = true; _creatingServer = false; }
-        if (NewServerStatus.Text.StartsWith('✓')) { NewServerNameBox.Text = ""; NewServerPortBox.Text = ""; }
+        if (NewServerStatus.Text.StartsWith('✓'))
+        {
+            NewServerNameBox.Text = "";
+            NewServerFolderBox.Text = "";
+            _folderNameWasEdited = false;
+            NewServerPortBox.Text = Vm.SuggestServerPort().ToString();
+            NewServerDedicatedBox.IsChecked = false;
+            NewServerInstallPathBox.Text = "";
+        }
     }
 
     private void OnUseServer(object sender, RoutedEventArgs e)
@@ -60,18 +134,16 @@ public partial class ServersView : UserControl
         }
     }
 
-    // --- per-server modal editor -----------------------------------------
+    // --- per-server inline editor ----------------------------------------
 
-    /// <summary>Open the modal editor for the active server on a given tab (0=Settings,1=Mods,2=Params).</summary>
+    /// <summary>Open the inline editor for the active server on a given tab (0=Settings,1=Mods,2=Params).</summary>
     private void OpenServerEditor(int tab)
     {
         if (Vm is null) return;
-        var dlg = new ServerEditorWindow(Vm, tab) { Owner = Window.GetWindow(this) };
-        dlg.ShowDialog();
-        Vm.RefreshServers();   // name/active may have changed (rename/clone)
+        (Window.GetWindow(this) as MainWindow)?.OpenServerEditor(tab, "servers");
     }
 
-    /// <summary>Servers row "Settings"/"Mods": activate the clicked server, then open its modal editor.</summary>
+    /// <summary>Servers row "Settings"/"Mods": activate the clicked server, then open its inline editor.</summary>
     private void OpenServerForRow(object sender, int tab)
     {
         if (Vm is null || sender is not FrameworkElement { Tag: string name }) return;

@@ -11,6 +11,8 @@ public class ConfigSplitTests
         var d = DzlConfig.Default() with
         {
             DayzPath = "X:/dz", DayzToolsPath = "X:/tools", DayzServerPath = "X:/server", ProjectsRoot = "X:/proj",
+            DisplayName = "My Friendly Server", InstanceFolderName = "My_Friendly_Server",
+            ServerInstallPathOverride = "X:/server-instance",
             ExeDebug = "a", ExeNormal = "b", ClientExeDebug = "c", ClientExeNormal = "d",
             ScanRoots = new() { "r1", "r2" }, LogsShown = new() { "script" }, ModWidthIdx = 3,
             EnableAutomationServer = true, AutoLaunchTray = false,
