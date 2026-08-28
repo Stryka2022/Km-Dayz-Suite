@@ -63,6 +63,19 @@ public class EnvTests
         File.GetLastWriteTimeUtc(cfgPath).Should().Be(before);   // no rewrite, no mtime churn
     }
 
+    [Fact]
+    public void EnsureHostname_replaces_the_default_with_the_server_display_name()
+    {
+        var dir = Directory.CreateTempSubdirectory().FullName;
+        var cfgPath = Path.Combine(dir, "serverDZ.cfg");
+        File.WriteAllText(cfgPath, ServerScaffold.DefaultServerCfg());
+
+        ServerScaffold.EnsureHostname(cfgPath, "Shaun's Chernarus PvE");
+
+        File.ReadAllText(cfgPath).Should().Contain("hostname = \"Shaun's Chernarus PvE\";")
+            .And.NotContain("APH Havoc dev server");
+    }
+
     [Theory]
     [InlineData("storage_1", true)]
     [InlineData("storage_42", true)]

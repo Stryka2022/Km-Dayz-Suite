@@ -188,7 +188,13 @@
                   <TextBlock Text="Connect IP" Style="{StaticResource FieldLabel}" />
                   <local:InfoTip Text="{x:Static local:HelpText.ConnectIp}" />
                 </StackPanel>
-                <ui:TextBox x:Name="CfgConnectIp" Margin="0,0,0,10" />
+                <Grid Margin="0,0,0,10">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                  <ui:TextBox x:Name="CfgConnectIp" Grid.Column="0" />
+                  <ui:Button Grid.Column="1" Content="Detect" Icon="{ui:SymbolIcon ArrowSync24}"
+                             Margin="8,0,0,0" ToolTip="Detect this machine's active LAN IPv4 address"
+                             Click="OnDetectConnectIp" />
+                </Grid>
                 <StackPanel Orientation="Horizontal">
                   <TextBlock Text="Server profiles" Style="{StaticResource FieldLabel}" />
                   <local:InfoTip Text="{x:Static local:HelpText.ProfilesDir}" />

@@ -161,6 +161,23 @@ class Missions
         catch { /* best-effort */ }
     }
 
+    /// <summary>Set the public DayZ server hostname to the instance display name. Existing base
+    /// configs are updated in place; configs without a hostname receive one at the top.</summary>
+    public static void EnsureHostname(string cfgPath, string displayName)
+    {
+        try
+        {
+            if (!File.Exists(cfgPath) || string.IsNullOrWhiteSpace(displayName)) return;
+            var safe = displayName.Trim().Replace("\\", "\\\\").Replace("\"", "\\\"")
+                .Replace("\r", " ").Replace("\n", " ");
+            var desired = $"hostname = \"{safe}\";";
+            var text = File.ReadAllText(cfgPath);
+            var rx = new Regex("hostname\\s*=\\s*\"[^\"]*\"\\s*;", RegexOptions.IgnoreCase);
+            File.WriteAllText(cfgPath, rx.IsMatch(text) ? rx.Replace(text, desired, 1) : desired + Environment.NewLine + text);
+        }
+        catch { /* best-effort */ }
+    }
+
     /// <summary>Append <c>allowFilePatching = 1;</c> to a serverDZ.cfg if it's missing (dev clients
     /// launched with -filePatching can't connect without it). Best-effort; never throws.</summary>
     public static void EnsureFilePatching(string cfgPath)

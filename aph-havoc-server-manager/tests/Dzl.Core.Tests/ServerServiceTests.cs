@@ -96,7 +96,8 @@ public class ServerServiceTests
         var install = Path.Combine(tmp, "dedicated server");
         var result = new ServerService(configPath).Create(
             "KM PvE #1", "chernarus", displayName: "KM PvE #1",
-            instanceFolderName: "KM PvE #1", serverInstallPathOverride: install);
+            instanceFolderName: "KM PvE #1", serverInstallPathOverride: install,
+            connectIp: "192.168.50.10");
 
         result.Ok.Should().BeTrue();
         result.Name.Should().Be("KM_PvE_1");
@@ -104,7 +105,11 @@ public class ServerServiceTests
         cfg.DisplayName.Should().Be("KM PvE #1");
         cfg.InstanceFolderName.Should().Be("KM_PvE_1");
         cfg.ServerInstallPathOverride.Should().Be(install);
+        cfg.ConnectIp.Should().Be("192.168.50.10");
+        cfg.Mode.Should().Be("normal");
         Directory.Exists(Path.Combine(root, "servers", "KM_PvE_1")).Should().BeTrue();
+        File.ReadAllText(Path.Combine(root, "servers", "KM_PvE_1", "serverDZ.cfg"))
+            .Should().Contain("hostname = \"KM PvE #1\";");
 
         new ServerService(configPath).Create(
             "KM PvE #1", "chernarus", displayName: "Another label", instanceFolderName: "KM PvE #1")

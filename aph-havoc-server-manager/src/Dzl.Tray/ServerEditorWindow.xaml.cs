@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using Dzl.Core.Servers;
 using Dzl.Tray.ViewModels;
 using Microsoft.Win32;
 using TextBox = System.Windows.Controls.TextBox;
@@ -55,6 +56,9 @@ public partial class ServerEditorWindow : UserControl
     }
 
     private void OnRevertServer(object sender, RoutedEventArgs e) => LoadEditor();
+
+    private void OnDetectConnectIp(object sender, RoutedEventArgs e) =>
+        CfgConnectIp.Text = ServerNetwork.DetectConnectIp();
 
     private void OnSaveServer(object sender, RoutedEventArgs e)
     {

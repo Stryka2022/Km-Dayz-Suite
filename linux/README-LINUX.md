@@ -1,6 +1,6 @@
 # APH Havoc Server Manager Linux CLI (x64)
 
-Release version: `0.1.35-km.8` (release archives also contain a plain-text `VERSION` file).
+Release version: `0.1.35-km.9` (release archives also contain a plain-text `VERSION` file).
 
 This archive is the native, headless Linux build of the legally separate GPL Server Manager companion bundled with KM DayZ Suite. It is intended for DayZ server owners who want configuration, status, log, Central Economy and validation commands on a Linux host.
 

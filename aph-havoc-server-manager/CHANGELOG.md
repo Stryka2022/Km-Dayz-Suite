@@ -4,6 +4,21 @@ All notable changes to dzl are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the app is versioned by
 git tag (`v*`), which the release workflow turns into a Velopack release.
 
+## [0.1.35-km.9] - 2026-08-28
+
+### Added
+- New server instances detect the preferred active LAN IPv4 address and expose refresh controls on
+  both the creation form and existing instance editor.
+
+### Fixed
+- Dedicated installs now resolve a chosen parent folder to an isolated `<safe server name>` folder,
+  authenticate with the configured Steam account, and only succeed after `DayZServer_x64.exe` is
+  present. SteamCMD errors such as `No subscription` are surfaced instead of accepting an empty
+  `steamapps` folder.
+- A failed dedicated install removes the newly-created instance record/scaffold while retaining
+  partial Steam files for a safe retry. Successful instances store the resolved install path, switch
+  to normal server mode, and write the display name to `serverDZ.cfg` as the public hostname.
+
 ## [0.1.35-km.8] - 2026-08-28
 
 ### Fixed

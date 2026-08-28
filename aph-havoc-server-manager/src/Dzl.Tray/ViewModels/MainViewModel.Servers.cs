@@ -34,24 +34,63 @@ public partial class MainViewModel
     public async Task<string> CreateServerAsync(string displayName, string folderName, string map, int? port,
                                                 string? baseName = null, string? modPreset = null,
                                                 bool offline = false, string? dedicatedInstallPath = null,
-                                                bool installDedicatedServer = false)
+                                                bool installDedicatedServer = false, string? connectIp = null)
     {
         var cp = _configPath;
+        var safeFolderName = ProjectPaths.SafeInstanceName(folderName);
+        string? resolvedInstallPath = null;
+        if (installDedicatedServer)
+        {
+            if (string.IsNullOrWhiteSpace(dedicatedInstallPath))
+                return "✗ choose a parent folder for the DayZ Dedicated Server install";
+            if (string.IsNullOrWhiteSpace(_cfg.SteamLogin))
+                return "✗ Steam account name required: sign in under Settings → Accounts, then create the instance again";
+            resolvedInstallPath = DedicatedServerInstaller.ResolveInstanceInstallPath(
+                dedicatedInstallPath, safeFolderName);
+        }
+
+        // Keep the previous active instance so a SteamCMD failure can be rolled back completely.
+        Profiles.EnsureDefault(cp);
+        var previousActive = Profiles.ResolveActive(cp).active;
         // The mission-template copy can be hundreds of MB — run it off the UI thread; the
         // active-preset reload + server-list refresh hop back afterward.
         var res = await Task.Run(() => new ServerService(cp).Create(
             folderName, map, port, activate: true, baseName: baseName, modPreset: modPreset, offline: offline,
             displayName: displayName, instanceFolderName: folderName,
-            serverInstallPathOverride: dedicatedInstallPath));
-        var installMessage = "";
-        if (res.Ok && installDedicatedServer && !string.IsNullOrWhiteSpace(dedicatedInstallPath))
+            serverInstallPathOverride: resolvedInstallPath, connectIp: connectIp));
+        if (!res.Ok)
         {
-            var install = await DedicatedServerInstaller.InstallAsync(cp, dedicatedInstallPath!);
-            installMessage = install.ok ? $"; {install.message}" : $"; dedicated install failed: {install.message}";
+            Reload();
+            RefreshServers();
+            return $"✗ {res.Message}";
         }
+
+        if (installDedicatedServer)
+        {
+            var install = await DedicatedServerInstaller.InstallAsync(cp, resolvedInstallPath!);
+            if (!install.ok)
+            {
+                // The dedicated install is external by default. Preserve it for a SteamCMD retry,
+                // but remove the just-created instance/scaffold so a failed install never appears
+                // as a usable server. If the user deliberately put it inside the instance folder,
+                // remove only dzl's record so partial downloaded files are still safe.
+                var installInsideInstance = IsInsideOrEqual(resolvedInstallPath!, res.Dir);
+                Profiles.Delete(res.Name, cp, removeFolder: !installInsideInstance);
+                Profiles.SetActive(previousActive, cp);
+                Reload();
+                RefreshServers();
+                return $"✗ dedicated server install failed; '{displayName}' was rolled back. " +
+                       $"Partial Steam files were kept at {resolvedInstallPath} for retry. {install.message}";
+            }
+        }
+
         Reload();              // active preset changed → refresh mods/paths/preset list
         RefreshServers();
-        return res.Ok ? $"✓ {res.Message}  (port {res.Port}){installMessage}" : $"✗ {res.Message}";
+        var created = Profiles.Load(res.Name, cp);
+        var installMessage = installDedicatedServer
+            ? $"; DayZ server files verified at {resolvedInstallPath}"
+            : "";
+        return $"✓ {res.Message}  (IP {created.ConnectIp}, port {res.Port}){installMessage}";
     }
 
     /// <summary>Preview the filesystem-safe key generated from a friendly display name.</summary>
@@ -68,7 +107,22 @@ public partial class MainViewModel
 
     /// <summary>Default per-instance DayZ Dedicated Server install folder.</summary>
     public string SuggestDedicatedInstallPath(string folderName) =>
-        Path.Combine(ProjectPaths.ServerDir(ProjectsRoot, ProjectPaths.SafeInstanceName(folderName)), "server-install");
+        Path.Combine(ProjectsRoot, "server-installs", ProjectPaths.SafeInstanceName(folderName));
+
+    /// <summary>Resolve a chosen parent folder to this server's isolated install folder.</summary>
+    public static string ResolveDedicatedInstallPath(string selectedPath, string folderName) =>
+        DedicatedServerInstaller.ResolveInstanceInstallPath(selectedPath, folderName);
+
+    /// <summary>Detect the preferred active LAN IPv4 address for a new or existing server.</summary>
+    public static string DetectServerIp() => ServerNetwork.DetectConnectIp();
+
+    private static bool IsInsideOrEqual(string candidate, string parent)
+    {
+        var child = Path.GetFullPath(candidate).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var root = Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return child.Equals(root, StringComparison.OrdinalIgnoreCase)
+               || child.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>Switch the active preset to a server instance's preset (by name).</summary>
     public string UseServer(string name)

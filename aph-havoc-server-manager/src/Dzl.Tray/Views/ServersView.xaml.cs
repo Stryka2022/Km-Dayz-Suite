@@ -20,8 +20,11 @@ public partial class ServersView : UserControl
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (Vm is null || NewServerPortBox.Text.Length > 0) return;
-        NewServerPortBox.Text = Vm.SuggestServerPort().ToString();
+        if (Vm is null) return;
+        if (NewServerPortBox.Text.Length == 0)
+            NewServerPortBox.Text = Vm.SuggestServerPort().ToString();
+        if (NewServerIpBox.Text.Length == 0)
+            NewServerIpBox.Text = MainViewModel.DetectServerIp();
     }
 
     private void OnDisplayNameChanged(object sender, TextChangedEventArgs e)
@@ -45,6 +48,9 @@ public partial class ServersView : UserControl
         if (Vm is not null) NewServerPortBox.Text = Vm.SuggestServerPort().ToString();
     }
 
+    private void OnDetectIp(object sender, RoutedEventArgs e) =>
+        NewServerIpBox.Text = MainViewModel.DetectServerIp();
+
     private void OnDedicatedInstallChanged(object sender, RoutedEventArgs e)
     {
         if (DedicatedInstallPanel is null) return;
@@ -61,9 +67,16 @@ public partial class ServersView : UserControl
 
     private void OnBrowseDedicatedInstall(object sender, RoutedEventArgs e)
     {
-        var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Choose this instance's DayZ Dedicated Server folder" };
-        if (Directory.Exists(NewServerInstallPathBox.Text)) dlg.InitialDirectory = NewServerInstallPathBox.Text;
-        if (dlg.ShowDialog(Window.GetWindow(this)) == true) NewServerInstallPathBox.Text = dlg.FolderName;
+        var dlg = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Choose a parent folder — the safe server name will be added",
+        };
+        var current = NewServerInstallPathBox.Text.Trim();
+        if (Directory.Exists(current)) dlg.InitialDirectory = current;
+        else if (Directory.Exists(Path.GetDirectoryName(current))) dlg.InitialDirectory = Path.GetDirectoryName(current)!;
+        if (dlg.ShowDialog(Window.GetWindow(this)) == true)
+            NewServerInstallPathBox.Text = MainViewModel.ResolveDedicatedInstallPath(
+                dlg.FolderName, NewServerFolderBox.Text);
     }
 
     // Re-entrancy guard for the create-server flow (button disabled while it runs, but a fast
@@ -94,12 +107,22 @@ public partial class ServersView : UserControl
         var offline = NewServerOfflineBox.IsChecked == true;
         var installDedicated = NewServerDedicatedBox.IsChecked == true;
         var installPath = installDedicated ? NewServerInstallPathBox.Text.Trim() : null;
+        var connectIp = NewServerIpBox.Text.Trim();
+        if (connectIp.Length == 0)
+        {
+            connectIp = MainViewModel.DetectServerIp();
+            NewServerIpBox.Text = connectIp;
+        }
         _creatingServer = true;
         NewServerButton.IsEnabled = false;
         NewServerStatus.Text = installDedicated
             ? "creating instance and installing DayZ Dedicated Server with SteamCMD…"
             : "creating… (copying mission template — this can take a moment)";
-        try { NewServerStatus.Text = await Vm.CreateServerAsync(displayName, folderName, map, port, baseName, modPreset, offline, installPath, installDedicated); }
+        try
+        {
+            NewServerStatus.Text = await Vm.CreateServerAsync(displayName, folderName, map, port,
+                baseName, modPreset, offline, installPath, installDedicated, connectIp);
+        }
         catch (Exception ex) { NewServerStatus.Text = "✗ " + ex.Message; }
         finally { NewServerButton.IsEnabled = true; _creatingServer = false; }
         if (NewServerStatus.Text.StartsWith('✓'))
@@ -108,6 +131,7 @@ public partial class ServersView : UserControl
             NewServerFolderBox.Text = "";
             _folderNameWasEdited = false;
             NewServerPortBox.Text = Vm.SuggestServerPort().ToString();
+            NewServerIpBox.Text = MainViewModel.DetectServerIp();
             NewServerDedicatedBox.IsChecked = false;
             NewServerInstallPathBox.Text = "";
         }

@@ -39,7 +39,7 @@ public sealed class ServerService
     public CreateServerResult Create(string name, string map, int? port = null, bool activate = true,
                                      string? baseName = null, string? modPreset = null, bool offline = false,
                                      string? displayName = null, string? instanceFolderName = null,
-                                     string? serverInstallPathOverride = null)
+                                     string? serverInstallPathOverride = null, string? connectIp = null)
     {
         Profiles.EnsureDefault(_configPath);
         var friendlyName = string.IsNullOrWhiteSpace(displayName) ? name.Trim() : displayName.Trim();
@@ -96,6 +96,7 @@ public sealed class ServerService
         // Point the serverDZ.cfg template at this instance's mission (absolute) — DayZ forces $currentdir to
         // the exe dir, so a bare name (from DefaultServerCfg or a copied base) would load the install's mission.
         ServerScaffold.EnsureAbsoluteTemplate(Path.Combine(instanceDir, "serverDZ.cfg"), instMission);
+        ServerScaffold.EnsureHostname(Path.Combine(instanceDir, "serverDZ.cfg"), friendlyName);
 
         // Repoint Mission at the new instance. ServerPreset.Build can't (it's pure, no disk) — without this
         // the new instance inherits the active preset's Mission, which may be an absolute path to ANOTHER
@@ -107,6 +108,8 @@ public sealed class ServerService
             DisplayName = friendlyName,
             InstanceFolderName = safeName,
             ServerInstallPathOverride = (serverInstallPathOverride ?? "").Trim(),
+            ConnectIp = string.IsNullOrWhiteSpace(connectIp) ? ServerNetwork.DetectConnectIp() : connectIp.Trim(),
+            Mode = !offline && !string.IsNullOrWhiteSpace(serverInstallPathOverride) ? "normal" : baseCfg.Mode,
         };
         if (!string.IsNullOrWhiteSpace(modPreset))
         {
