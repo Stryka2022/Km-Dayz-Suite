@@ -1,7 +1,9 @@
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using Dzl.Core.Servers;
 using Dzl.Tray;
+using Dzl.Tray.Views;
 using FluentAssertions;
 using Wpf.Ui.Appearance;
 
@@ -53,6 +55,25 @@ public class WpfRealizationSmokeTests
             try
             {
                 var el = (FrameworkElement)Activator.CreateInstance(type)!;
+                if (el is ServersView)
+                {
+                    // Realize an actual server card so display-only metadata bindings are exercised.
+                    // WPF defaults some Run.Text bindings to TwoWay, which must not target read-only
+                    // properties such as ServerInstance.FolderName.
+                    el.DataContext = new
+                    {
+                        Servers = new[]
+                        {
+                            new ServerInstance("default", @"C:\DayZProjects\servers\default",
+                                @"C:\DayZProjects\servers\default\serverDZ.cfg",
+                                DisplayName: "My Server", Port: 2302)
+                        },
+                        Maps = Array.Empty<string>(),
+                        BaseChoices = Array.Empty<string>(),
+                        ModPresetChoices = Array.Empty<string>(),
+                        ActivePreset = "default"
+                    };
+                }
                 // Force template application + style/resource resolution without showing a window. This is
                 // the point where a bad SymbolIcon / missing StaticResource / BasedOn-less style throws.
                 el.Measure(new Size(1200, 900));

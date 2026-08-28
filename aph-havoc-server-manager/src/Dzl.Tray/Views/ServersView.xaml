@@ -156,7 +156,7 @@
                         </StackPanel>
                         <TextBlock FontSize="11" TextTrimming="CharacterEllipsis"
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}">
-                          <Run Text="Folder: "/><Run Text="{Binding FolderName}"/><Run Text="  •  Port "/><Run Text="{Binding Port}"/>
+                          <Run Text="Folder: "/><Run Text="{Binding FolderName, Mode=OneWay}"/><Run Text="  •  Port "/><Run Text="{Binding Port, Mode=OneWay}"/>
                         </TextBlock>
                         <TextBlock Text="{Binding InstallPath, StringFormat=Dedicated install: {0}}" FontSize="11"
                                    TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextFillColorTertiaryBrush}">

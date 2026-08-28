@@ -4,6 +4,14 @@ All notable changes to dzl are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the app is versioned by
 git tag (`v*`), which the release workflow turns into a Velopack release.
 
+## [0.1.35-km.8] - 2026-08-28
+
+### Fixed
+- The Server Instances page now treats read-only folder and port metadata as display-only bindings,
+  preventing the `FolderName` binding exception when one or more server cards are rendered.
+- Repeated identical UI exceptions are coalesced so one failure cannot create a cascade of error
+  dialogs while the underlying fault is still logged.
+
 ## [0.1.35-km.7] - 2026-08-28
 
 ### Added

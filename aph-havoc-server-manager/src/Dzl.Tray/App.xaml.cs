@@ -18,6 +18,9 @@ public partial class App : Application
     private Mutex? _singleton;
     private CancellationTokenSource? _cts;
     private TrayIcon? _tray;
+    private bool _showingUiError;
+    private string? _lastUiError;
+    private DateTime _lastUiErrorShownUtc;
 
     /// <summary>
     /// True when this GPL application is being hosted as the separately-running Server Manager
@@ -95,8 +98,22 @@ public partial class App : Application
         DispatcherUnhandledException += (_, ex) =>
         {
             LogCrash(ex.Exception);
-            MessageBox.Show(ex.Exception.Message, "APH Havoc Server Manager — something went wrong",
-                            MessageBoxButton.OK, MessageBoxImage.Error);
+            var message = ex.Exception.Message;
+            var now = DateTime.UtcNow;
+            var duplicate = string.Equals(message, _lastUiError, StringComparison.Ordinal)
+                            && now - _lastUiErrorShownUtc < TimeSpan.FromSeconds(10);
+            if (!_showingUiError && !duplicate)
+            {
+                _showingUiError = true;
+                _lastUiError = message;
+                _lastUiErrorShownUtc = now;
+                try
+                {
+                    MessageBox.Show(message, "APH Havoc Server Manager — something went wrong",
+                                    MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                finally { _showingUiError = false; }
+            }
             ex.Handled = true;
         };
         AppDomain.CurrentDomain.UnhandledException += (_, ex) =>
