@@ -8,6 +8,9 @@ public sealed record ProcInfo(int Pid, string Mode, string Source, string Exe);
 public static class StateFile
 {
     private static readonly JsonSerializerOptions Json = DzlJson.SnakeIndented;
+    // Several instance-row Start/Stop operations may finish together. Serialize the in-process
+    // read/modify/write sequences so one PID record cannot overwrite another one.
+    private static readonly object Gate = new();
 
     public static string Path(string configPath) =>
         System.IO.Path.Combine(System.IO.Path.GetDirectoryName(configPath) ?? ".", ".dzl-procs.json");
@@ -25,27 +28,36 @@ public static class StateFile
     // imageOf(pid) -> image name or null if not running (injectable for tests).
     public static Dictionary<string, ProcInfo> ReadLive(string configPath, Func<int, string?> imageOf)
     {
-        var raw = ReadRaw(configPath);
-        var live = raw.Where(kv =>
+        lock (Gate)
         {
-            var img = imageOf(kv.Value.Pid);
-            return img is not null && string.Equals(img, kv.Value.Exe, StringComparison.OrdinalIgnoreCase);
-        }).ToDictionary(kv => kv.Key, kv => kv.Value);
-        if (live.Count != raw.Count) WriteAll(configPath, live);
-        return live;
+            var raw = ReadRaw(configPath);
+            var live = raw.Where(kv =>
+            {
+                var img = imageOf(kv.Value.Pid);
+                return img is not null && string.Equals(img, kv.Value.Exe, StringComparison.OrdinalIgnoreCase);
+            }).ToDictionary(kv => kv.Key, kv => kv.Value);
+            if (live.Count != raw.Count) WriteAll(configPath, live);
+            return live;
+        }
     }
 
     public static void Write(string configPath, string target, int pid, string mode, string source, string exe)
     {
-        var data = ReadRaw(configPath);
-        data[target] = new ProcInfo(pid, mode, source, exe);
-        WriteAll(configPath, data);
+        lock (Gate)
+        {
+            var data = ReadRaw(configPath);
+            data[target] = new ProcInfo(pid, mode, source, exe);
+            WriteAll(configPath, data);
+        }
     }
 
     public static void Clear(string configPath, string target)
     {
-        var data = ReadRaw(configPath);
-        if (data.Remove(target)) WriteAll(configPath, data);
+        lock (Gate)
+        {
+            var data = ReadRaw(configPath);
+            if (data.Remove(target)) WriteAll(configPath, data);
+        }
     }
 
     /// <summary>Move one tracked process to a new key without disturbing other live instances.
@@ -54,11 +66,14 @@ public static class StateFile
     public static void MoveKey(string configPath, string from, string to)
     {
         if (string.Equals(from, to, StringComparison.Ordinal)) return;
-        var data = ReadRaw(configPath);
-        if (!data.TryGetValue(from, out var info) || data.ContainsKey(to)) return;
-        data.Remove(from);
-        data[to] = info;
-        WriteAll(configPath, data);
+        lock (Gate)
+        {
+            var data = ReadRaw(configPath);
+            if (!data.TryGetValue(from, out var info) || data.ContainsKey(to)) return;
+            data.Remove(from);
+            data[to] = info;
+            WriteAll(configPath, data);
+        }
     }
 
     private static void WriteAll(string configPath, Dictionary<string, ProcInfo> data)

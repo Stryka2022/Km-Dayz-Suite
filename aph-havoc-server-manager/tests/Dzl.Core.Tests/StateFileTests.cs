@@ -65,4 +65,17 @@ public class StateFileTests
         state["server:alpha"].Pid.Should().Be(1001);
         state["server:bravo"].Pid.Should().Be(1002);
     }
+
+    [Fact]
+    public void Concurrent_named_server_writes_keep_every_pid_record()
+    {
+        var cfg = Cfg();
+
+        Parallel.For(0, 32, i =>
+            StateFile.Write(cfg, $"server:instance-{i}", 2000 + i, "normal", "test", "DayZServer_x64.exe"));
+
+        var state = StateFile.ReadRaw(cfg);
+        state.Should().HaveCount(32);
+        for (var i = 0; i < 32; i++) state.Should().ContainKey($"server:instance-{i}");
+    }
 }
