@@ -70,6 +70,29 @@ public class DedicatedServerInstallerTests
     }
 
     [Fact]
+    public void FindReusableInstall_reuses_the_active_instances_complete_runtime_first()
+    {
+        var root = Directory.CreateTempSubdirectory();
+        try
+        {
+            var instance = Directory.CreateDirectory(Path.Combine(root.FullName, "existing-instance")).FullName;
+            var global = Directory.CreateDirectory(Path.Combine(root.FullName, "global-server")).FullName;
+            File.WriteAllText(Path.Combine(instance, DedicatedServerInstaller.ServerExecutable), "instance");
+            File.WriteAllText(Path.Combine(global, DedicatedServerInstaller.ServerExecutable), "global");
+
+            DedicatedServerInstaller.FindReusableInstall(
+                    DzlConfig.Default() with
+                    {
+                        ServerInstallPathOverride = instance,
+                        DayzServerPath = global,
+                    },
+                    Path.Combine(root.FullName, "new-instance"))
+                .Should().Be(Path.GetFullPath(instance));
+        }
+        finally { root.Delete(recursive: true); }
+    }
+
+    [Fact]
     public async Task CopyExistingInstall_copies_and_verifies_a_local_server_with_progress()
     {
         var root = Directory.CreateTempSubdirectory();

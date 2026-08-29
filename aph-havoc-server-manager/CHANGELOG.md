@@ -17,6 +17,8 @@ git tag (`v*`), which the release workflow turns into a Velopack release.
 - New online instances default to one complete runnable folder containing `DayZServer_x64.exe`,
   `serverDZ.cfg`, `mpmissions`, profiles and runtime files. Interrupted runtime copies remain
   resumable without damaging the instance-owned content.
+- A new instance can seed itself from the active instance's already-verified runtime before trying
+  the global install or SteamCMD, making additional servers independent of another Steam sign-in.
 - Each instance now receives a distinct `instanceId` and Steam query port (`game port + 3`), and new
   port selection reserves both ports to prevent collisions between concurrently running servers.
 

@@ -43,9 +43,16 @@ public static class DedicatedServerInstaller
     public static string? FindReusableInstall(DzlConfig cfg, string installPath)
     {
         if (IsInstalled(installPath)) return Path.GetFullPath(installPath);
-        if (string.IsNullOrWhiteSpace(cfg.DayzServerPath)) return null;
-        var source = Path.GetFullPath(cfg.DayzServerPath.Trim());
-        return IsInstalled(source) ? source : null;
+        // The active named instance is often the only configured valid runtime. Reuse it before
+        // falling back to the machine-wide install so adding server #2/#3 never needlessly returns
+        // to SteamCMD authentication or another download.
+        foreach (var candidate in new[] { cfg.ServerInstallPathOverride, cfg.DayzServerPath })
+        {
+            if (string.IsNullOrWhiteSpace(candidate)) continue;
+            var source = Path.GetFullPath(candidate.Trim());
+            if (IsInstalled(source)) return source;
+        }
+        return null;
     }
 
     /// <summary>Copy an existing official DayZ Server installation into an isolated instance.
