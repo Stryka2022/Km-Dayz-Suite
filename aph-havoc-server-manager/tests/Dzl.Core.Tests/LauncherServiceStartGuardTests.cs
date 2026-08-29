@@ -64,4 +64,21 @@ public class LauncherServiceStartGuardTests
 
         svc.StartTarget("server", "debug").Message.Should().NotContain("already up");
     }
+
+    [Fact]
+    public void Live_server_for_another_instance_does_not_block_the_active_server()
+    {
+        var path = Seed();
+        var (cfg, _, _) = Profiles.ResolveActive(path);
+        Profiles.Save(cfg, "alpha", path);
+        Profiles.Save(cfg, "bravo", path);
+        Profiles.SetActive("bravo", path);
+        MarkLive(path, ProcessManager.ServerStateKey("alpha"));
+        var svc = new LauncherService(path);
+
+        svc.StartTarget("server", "debug").Message.Should().NotContain("already up");
+
+        MarkLive(path, ProcessManager.ServerStateKey("bravo"));
+        svc.StartTarget("server", "debug").Message.Should().Contain("already up");
+    }
 }

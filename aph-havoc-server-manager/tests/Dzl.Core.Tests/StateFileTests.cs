@@ -50,4 +50,19 @@ public class StateFileTests
         using var lockStream = new FileStream(StateFile.Path(cfg), FileMode.Open, FileAccess.ReadWrite, FileShare.None);
         StateFile.ReadRaw(cfg).Should().BeEmpty();
     }
+
+    [Fact]
+    public void MoveKey_migrates_legacy_server_without_disturbing_other_instances()
+    {
+        var cfg = Cfg();
+        StateFile.Write(cfg, "server", 1001, "normal", "test", "DayZServer_x64.exe");
+        StateFile.Write(cfg, "server:bravo", 1002, "normal", "test", "DayZServer_x64.exe");
+
+        StateFile.MoveKey(cfg, "server", "server:alpha");
+
+        var state = StateFile.ReadRaw(cfg);
+        state.Should().NotContainKey("server");
+        state["server:alpha"].Pid.Should().Be(1001);
+        state["server:bravo"].Pid.Should().Be(1002);
+    }
 }

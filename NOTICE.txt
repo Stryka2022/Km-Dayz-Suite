@@ -70,8 +70,12 @@ headless CLI. Steam QR/password authentication now uses the supported Steam Clie
 session flow, safely cancels competing attempts, verifies encrypted session persistence,
 and the companion executable uses the KM DayZ Suite icon. Invalid window-resource icon
 markup was removed, embedded navigation collapse is deterministic, and startup/page
-navigation avoids redundant editor recounts and background polling. The companion version
-for these changes is 0.1.35-km.12.
+navigation avoids redundant editor recounts and background polling. Named server instances now
+have independent process/PID tracking and Start/Stop controls so multiple servers can run together.
+New online instances default to a complete runnable folder; existing split layouts can copy their
+verified runtime into the instance folder without replacing serverDZ.cfg, missions, profiles or
+persistence. Game/query port pairs and DayZ instance IDs are unique per managed server. The companion
+version for these changes is 0.1.35-km.13.
 Original upstream authorship, copyright and GPL licensing are retained in this legal
 notice and the corresponding source history. Public distribution and modifications
 are presented under the APH Havoc name without claiming ownership of upstream work.

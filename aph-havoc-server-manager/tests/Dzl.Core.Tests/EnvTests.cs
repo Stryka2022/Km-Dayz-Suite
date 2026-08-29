@@ -76,6 +76,19 @@ public class EnvTests
             .And.NotContain("APH Havoc dev server");
     }
 
+    [Fact]
+    public void EnsureNetworkIdentity_assigns_unique_instance_and_query_ports()
+    {
+        var dir = Directory.CreateTempSubdirectory().FullName;
+        var cfgPath = Path.Combine(dir, "serverDZ.cfg");
+        File.WriteAllText(cfgPath, ServerScaffold.DefaultServerCfg());
+
+        ServerScaffold.EnsureNetworkIdentity(cfgPath, 2502);
+
+        File.ReadAllText(cfgPath).Should().Contain("instanceId = 2502;")
+            .And.Contain("steamQueryPort = 2505;");
+    }
+
     [Theory]
     [InlineData("storage_1", true)]
     [InlineData("storage_42", true)]

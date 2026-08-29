@@ -34,4 +34,22 @@ public class ServerInstancesTests
         selected.Should().BeInRange(2302, 2400);
         used.Should().NotContain(selected);
     }
+
+    [Theory]
+    [InlineData(2302, false)]
+    [InlineData(2305, false)]
+    [InlineData(2299, false)]
+    [InlineData(2402, true)]
+    public void PortPairAvailable_reserves_game_and_query_ports(int candidate, bool expected)
+        => ServerInstances.PortPairAvailable(candidate, new[] { 2302 }).Should().Be(expected);
+
+    [Fact]
+    public void RandomServerPort_avoids_all_existing_game_and_query_pairs()
+    {
+        var used = new[] { 2302, 2402, 2502 };
+        var selected = ServerInstances.RandomServerPort(used, 2299, 2510);
+
+        ServerInstances.PortPairAvailable(selected, used).Should().BeTrue();
+        selected.Should().BeInRange(2299, 2510);
+    }
 }

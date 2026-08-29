@@ -100,12 +100,12 @@ public partial class MainViewModel
         var used = Profiles.List(_configPath)
             .Select(n => { try { return Profiles.Load(n, _configPath).Port; } catch { return 0; } })
             .Where(p => p > 0);
-        return ServerInstances.RandomPort(used);
+        return ServerInstances.RandomServerPort(used);
     }
 
     /// <summary>Default per-instance DayZ Dedicated Server install folder.</summary>
     public string SuggestDedicatedInstallPath(string folderName) =>
-        Path.Combine(ProjectsRoot, "server-installs", ProjectPaths.SafeInstanceName(folderName));
+        ProjectPaths.ServerDir(ProjectsRoot, ProjectPaths.SafeInstanceName(folderName));
 
     /// <summary>Resolve a chosen parent folder to this server's isolated install folder.</summary>
     public static string ResolveDedicatedInstallPath(string selectedPath, string folderName) =>
@@ -128,6 +128,45 @@ public partial class MainViewModel
         return install.ok
             ? $"✓ {install.message}"
             : $"✗ install / repair failed for '{displayName}'. {install.message}";
+    }
+
+    /// <summary>Copy the runtime into the instance/config folder and make that folder the launch
+    /// location. This explicitly migrates older split-layout instances.</summary>
+    public async Task<string> ConsolidateDedicatedServerAsync(string name, IProgress<string>? progress = null)
+    {
+        if (!Profiles.List(_configPath).Contains(name)) return $"✗ no instance '{name}'";
+        var cfg = Profiles.Load(name, _configPath);
+        var target = Path.GetDirectoryName(cfg.ConfigName) ?? "";
+        if (target.Length == 0) return $"✗ '{name}' has no instance folder";
+        var source = DedicatedServerInstaller.IsInstalled(cfg.ServerInstallPathOverride)
+            ? cfg.ServerInstallPathOverride
+            : DedicatedServerInstaller.FindReusableInstall(cfg, target);
+        if (source is null)
+            return $"✗ no reusable DayZ Dedicated Server install was found for '{name}'";
+
+        var copy = await DedicatedServerInstaller.CopyExistingInstallAsync(source, target, progress);
+        if (!copy.ok) return $"✗ could not install files in the instance folder. {copy.message}";
+        Profiles.Save(cfg with { ServerInstallPathOverride = target, Mode = "normal" }, name, _configPath);
+        var (_, _, active) = Profiles.ResolveActive(_configPath);
+        if (string.Equals(active, name, StringComparison.OrdinalIgnoreCase)) Reload();
+        RefreshServers();
+        return $"✓ complete runnable server installed in {target}";
+    }
+
+    public async Task<string> StartServerInstanceAsync(string name)
+    {
+        var result = await Task.Run(() => _svc.StartServerInstance(name));
+        await RefreshStatusAsync();
+        RefreshServers();
+        return result.Ok ? $"✓ {result.Message}" : $"✗ {result.Message}";
+    }
+
+    public async Task<string> StopServerInstanceAsync(string name)
+    {
+        var result = await Task.Run(() => _svc.StopServerInstance(name));
+        await RefreshStatusAsync();
+        RefreshServers();
+        return result.Ok ? $"✓ {result.Message}" : $"✗ {result.Message}";
     }
 
     /// <summary>Detect the preferred active LAN IPv4 address for a new or existing server.</summary>

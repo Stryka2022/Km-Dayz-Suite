@@ -109,7 +109,9 @@ public class ServerServiceTests
         cfg.Mode.Should().Be("normal");
         Directory.Exists(Path.Combine(root, "servers", "KM_PvE_1")).Should().BeTrue();
         File.ReadAllText(Path.Combine(root, "servers", "KM_PvE_1", "serverDZ.cfg"))
-            .Should().Contain("hostname = \"KM PvE #1\";");
+            .Should().Contain("hostname = \"KM PvE #1\";")
+            .And.Contain($"instanceId = {cfg.Port};")
+            .And.Contain($"steamQueryPort = {cfg.Port + 3};");
 
         new ServerService(configPath).Create(
             "KM PvE #1", "chernarus", displayName: "Another label", instanceFolderName: "KM PvE #1")
@@ -128,6 +130,9 @@ public class ServerServiceTests
         var service = new ServerService(configPath);
         service.Create("alpha", "chernarus", 2502).Ok.Should().BeTrue();
         service.Create("bravo", "chernarus", 2502).Ok.Should().BeFalse();
-        service.Create("charlie", "chernarus", 80).Ok.Should().BeFalse();
+        service.Create("charlie", "chernarus", 2505).Ok.Should().BeFalse();
+        service.Create("delta", "chernarus", 2499).Ok.Should().BeFalse();
+        service.Create("echo", "chernarus", 80).Ok.Should().BeFalse();
+        service.Create("foxtrot", "chernarus", 65533).Ok.Should().BeFalse();
     }
 }

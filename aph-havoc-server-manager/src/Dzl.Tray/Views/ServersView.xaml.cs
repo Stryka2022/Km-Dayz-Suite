@@ -133,9 +133,30 @@ public partial class ServersView : UserControl
             _folderNameWasEdited = false;
             NewServerPortBox.Text = Vm.SuggestServerPort().ToString();
             NewServerIpBox.Text = MainViewModel.DetectServerIp();
-            NewServerDedicatedBox.IsChecked = false;
             NewServerInstallPathBox.Text = "";
         }
+    }
+
+    private readonly HashSet<string> _instanceLifecycleBusy = new(StringComparer.OrdinalIgnoreCase);
+
+    private async void OnStartServerInstance(object sender, RoutedEventArgs e)
+    {
+        if (Vm is null || sender is not FrameworkElement { Tag: string name }
+            || !_instanceLifecycleBusy.Add(name)) return;
+        NewServerStatus.Text = $"starting {name}…";
+        try { NewServerStatus.Text = await Vm.StartServerInstanceAsync(name); }
+        catch (Exception ex) { NewServerStatus.Text = "✗ " + ex.Message; }
+        finally { _instanceLifecycleBusy.Remove(name); }
+    }
+
+    private async void OnStopServerInstance(object sender, RoutedEventArgs e)
+    {
+        if (Vm is null || sender is not FrameworkElement { Tag: string name }
+            || !_instanceLifecycleBusy.Add(name)) return;
+        NewServerStatus.Text = $"stopping {name}…";
+        try { NewServerStatus.Text = await Vm.StopServerInstanceAsync(name); }
+        catch (Exception ex) { NewServerStatus.Text = "✗ " + ex.Message; }
+        finally { _instanceLifecycleBusy.Remove(name); }
     }
 
     private void OnUseServer(object sender, RoutedEventArgs e)
@@ -208,6 +229,25 @@ public partial class ServersView : UserControl
         {
             var progress = new Progress<string>(message => NewServerStatus.Text = message);
             NewServerStatus.Text = await Vm.RepairDedicatedServerAsync(name, progress);
+        }
+        catch (Exception ex) { NewServerStatus.Text = "✗ " + ex.Message; }
+        finally { _repairingDedicatedServer = false; }
+    }
+
+    private async void OnConsolidateDedicatedServer(object sender, RoutedEventArgs e)
+    {
+        if (Vm is null || _repairingDedicatedServer || sender is not FrameworkElement { Tag: string name }) return;
+        var confirmed = System.Windows.MessageBox.Show(
+            "Install a complete copy of the DayZ Dedicated Server runtime into this instance/config " +
+            "folder? Existing serverDZ.cfg, mission and profiles are preserved. This can copy several GB.",
+            "Install files in instance folder", System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Question) == System.Windows.MessageBoxResult.Yes;
+        if (!confirmed) return;
+        _repairingDedicatedServer = true;
+        try
+        {
+            var progress = new Progress<string>(message => NewServerStatus.Text = message);
+            NewServerStatus.Text = await Vm.ConsolidateDedicatedServerAsync(name, progress);
         }
         catch (Exception ex) { NewServerStatus.Text = "✗ " + ex.Message; }
         finally { _repairingDedicatedServer = false; }

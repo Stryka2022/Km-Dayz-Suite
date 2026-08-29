@@ -12,10 +12,13 @@ public sealed record ServerInstance(
     bool Offline = false,
     string DisplayName = "",
     string InstallPath = "",
-    int Port = 0)
+    int Port = 0,
+    bool Running = false,
+    int? Pid = null)
 {
     public string FriendlyName => string.IsNullOrWhiteSpace(DisplayName) ? Name : DisplayName;
     public string FolderName => Path.GetFileName(Dir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+    public string RunnableDir => string.IsNullOrWhiteSpace(InstallPath) ? Dir : InstallPath;
 }
 
 public static class ServerInstances
@@ -62,5 +65,31 @@ public static class ServerInstances
             if (!set.Contains(candidate)) return candidate;
 
         throw new InvalidOperationException("no free server ports are available");
+    }
+
+    /// <summary>Pick a game port whose paired Steam query port (<c>game + 3</c>) does not overlap
+    /// any existing managed instance's game/query pair.</summary>
+    public static int RandomServerPort(IEnumerable<int> usedGamePorts, int min = 2302, int max = 65000)
+    {
+        if (min < 1024 || max > 65532 || min > max)
+            throw new ArgumentOutOfRangeException(nameof(min), "server port range must leave room for query port + 3");
+        var used = usedGamePorts.Where(p => p is >= 1024 and <= 65532).ToArray();
+        for (var attempt = 0; attempt < 4096; attempt++)
+        {
+            var candidate = Random.Shared.Next(min, max + 1);
+            if (PortPairAvailable(candidate, used)) return candidate;
+        }
+        for (var candidate = min; candidate <= max; candidate++)
+            if (PortPairAvailable(candidate, used)) return candidate;
+        throw new InvalidOperationException("no non-overlapping server/query port pair is available");
+    }
+
+    public static bool PortPairAvailable(int candidate, IEnumerable<int> usedGamePorts)
+    {
+        if (candidate is < 1024 or > 65532) return false;
+        var candidateQuery = candidate + 3;
+        return usedGamePorts.Where(p => p is >= 1024 and <= 65532)
+            .All(existing => candidate != existing && candidate != existing + 3
+                             && candidateQuery != existing && candidateQuery != existing + 3);
     }
 }

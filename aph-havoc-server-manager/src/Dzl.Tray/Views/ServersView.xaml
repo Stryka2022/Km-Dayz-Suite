@@ -20,7 +20,7 @@
     <StackPanel Grid.Row="0" Margin="0,0,0,12">
       <TextBlock Text="Server Instances" FontSize="20" FontWeight="SemiBold" />
       <TextBlock FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
-        <Run Text="Each instance is its own config — server or offline sandbox, with its own serverDZ.cfg, profiles, port, params and mod loadout. Select one to make it active and edit it below." />
+        <Run Text="Each online instance is a complete runnable server folder with its own files, serverDZ.cfg, profiles, game/query ports and process. Start several rows together, or select Use to edit one." />
       </TextBlock>
     </StackPanel>
 
@@ -98,18 +98,19 @@
               <CheckBox x:Name="NewServerOfflineBox" Grid.Column="3" Margin="0,18,10,0" VerticalAlignment="Center"
                         Content="Offline sandbox" ToolTip="Client-only: launches without -connect." />
               <CheckBox x:Name="NewServerDedicatedBox" Grid.Column="4" Margin="0,18,12,0" VerticalAlignment="Center"
-                        Content="Dedicated install" Checked="OnDedicatedInstallChanged" Unchecked="OnDedicatedInstallChanged"
-                        ToolTip="Install/validate DayZ Dedicated Server with SteamCMD into this instance's own folder." />
+                        Content="Dedicated install" IsChecked="True"
+                        Checked="OnDedicatedInstallChanged" Unchecked="OnDedicatedInstallChanged"
+                        ToolTip="Create a complete runnable folder containing DayZServer_x64.exe and this instance's configuration." />
               <ui:Button x:Name="NewServerButton" Grid.Column="5" Margin="0,18,0,0" Content="Create" Appearance="Primary"
                          Icon="{ui:SymbolIcon Add24}" Click="OnCreateServer" />
             </Grid>
-            <StackPanel x:Name="DedicatedInstallPanel" Margin="0,0,0,8" IsEnabled="False">
-              <TextBlock Text="Dedicated server install folder (the safe server name is appended when a parent folder is chosen)"
+            <StackPanel x:Name="DedicatedInstallPanel" Margin="0,0,0,8" IsEnabled="True">
+              <TextBlock Text="Complete runnable server folder (defaults to this instance's own folder; a safe server name is appended to a chosen parent)"
                          FontSize="11" Margin="2,0,0,4" />
               <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <ui:TextBox x:Name="NewServerInstallPathBox" Grid.Column="0" Margin="0,0,8,0"
-                            PlaceholderText="Parent folder + safe server name" />
+                            PlaceholderText="Instance folder containing DayZServer_x64.exe" />
                 <ui:Button Grid.Column="1" Content="Browse…" Icon="{ui:SymbolIcon FolderOpen24}"
                            Click="OnBrowseDedicatedInstall" />
               </Grid>
@@ -167,6 +168,12 @@
                                   Visibility="{Binding Offline, Converter={StaticResource BoolToVis}}">
                             <TextBlock Text="offline" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource KmOrangeBrush}" />
                           </Border>
+                          <Border CornerRadius="9" Padding="8,2" Margin="8,0,0,0" Background="{DynamicResource KmGreenTintBrush}"
+                                  VerticalAlignment="Center" Visibility="{Binding Running, Converter={StaticResource BoolToVis}}">
+                            <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource KmGreenBrush}">
+                              <Run Text="running · PID "/><Run Text="{Binding Pid, Mode=OneWay}" />
+                            </TextBlock>
+                          </Border>
                         </StackPanel>
                         <TextBlock FontSize="11" TextTrimming="CharacterEllipsis"
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}">
@@ -182,7 +189,22 @@
                         </TextBlock>
                       </StackPanel>
                       <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <!-- Primary: Use (activate). Everything else under the ⋯ menu. -->
+                        <ui:Button Content="Start" Icon="{ui:SymbolIcon Play24}" Tag="{Binding Name}"
+                                   Click="OnStartServerInstance" Margin="0,0,8,0"
+                                   Visibility="{Binding Running, Converter={StaticResource InverseBoolToVis}}">
+                          <ui:Button.Style>
+                            <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+                              <Setter Property="IsEnabled" Value="True" />
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding Offline}" Value="True"><Setter Property="IsEnabled" Value="False" /></DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </ui:Button.Style>
+                        </ui:Button>
+                        <ui:Button Content="Stop" Icon="{ui:SymbolIcon Stop24}" Tag="{Binding Name}"
+                                   Click="OnStopServerInstance" Margin="0,0,8,0"
+                                   Visibility="{Binding Running, Converter={StaticResource BoolToVis}}" />
+                        <!-- Use selects the instance for editing; running processes stay independent. -->
                         <ui:Button Content="Use" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}"
                                    ToolTip="Make this the active server instance"
                                    Tag="{Binding Name}" Click="OnUseServer" Margin="0,0,8,0" />
@@ -200,9 +222,14 @@
                                         Click="OnRepairDedicatedServer">
                                 <MenuItem.Icon><ui:SymbolIcon Symbol="ArrowDownload24" /></MenuItem.Icon>
                               </MenuItem>
-                              <MenuItem Header="Open folder" Tag="{Binding Dir}" Click="OnOpenServerFolder">
+                              <MenuItem Header="Install files in instance folder…" Tag="{Binding Name}"
+                                        Click="OnConsolidateDedicatedServer">
                                 <MenuItem.Icon><ui:SymbolIcon Symbol="FolderOpen24" /></MenuItem.Icon>
                               </MenuItem>
+                              <MenuItem Header="Open runnable server folder" Tag="{Binding RunnableDir}" Click="OnOpenServerFolder">
+                                <MenuItem.Icon><ui:SymbolIcon Symbol="FolderOpen24" /></MenuItem.Icon>
+                              </MenuItem>
+                              <MenuItem Header="Open instance/config folder" Tag="{Binding Dir}" Click="OnOpenServerFolder" />
                               <MenuItem Header="Open in editor" Tag="{Binding Dir}" Click="OnOpenInEditor">
                                 <MenuItem.Icon><ui:SymbolIcon Symbol="Code24" /></MenuItem.Icon>
                               </MenuItem>

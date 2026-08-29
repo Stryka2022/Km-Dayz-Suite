@@ -1,6 +1,7 @@
 using Dzl.Core.Bases;
 using Dzl.Core.Config;
 using Dzl.Core.Env;
+using Dzl.Core.Launch;
 using Dzl.Core.Mods;
 using Dzl.Core.Projects;
 using Dzl.Core.Servers;
@@ -19,6 +20,11 @@ public sealed class ServerService
     public IReadOnlyList<ServerInstance> List()
     {
         var list = new List<ServerInstance>();
+        Profiles.EnsureDefault(_configPath);
+        var (_, _, active) = Profiles.ResolveActive(_configPath);
+        StateFile.MoveKey(_configPath, "server", ProcessManager.ServerStateKey(
+            string.IsNullOrWhiteSpace(active) ? "default" : active));
+        var live = StateFile.ReadLive(_configPath, ProcessManager.ImageOf);
         foreach (var name in Profiles.List(_configPath))
         {
             try
@@ -26,8 +32,10 @@ public sealed class ServerService
                 var cfg = Profiles.Load(name, _configPath);
                 var cfgPath = cfg.ConfigName;
                 var dir = Path.GetDirectoryName(cfgPath) ?? "";
+                live.TryGetValue(ProcessManager.ServerStateKey(name), out var process);
                 list.Add(new ServerInstance(name, dir, cfgPath, cfg.OfflineMode,
-                    cfg.DisplayName, cfg.ServerInstallPathOverride, cfg.Port));
+                    cfg.DisplayName, cfg.ServerInstallPathOverride, cfg.Port,
+                    Running: process is not null, Pid: process?.Pid));
             }
             catch { /* skip unreadable instance */ }
         }
@@ -64,12 +72,13 @@ public sealed class ServerService
             .Select(n => { try { return Profiles.Load(n, _configPath).Port; } catch { return 0; } })
             .Where(p => p > 0)
             .ToHashSet();
-        if (port is < 1024 or > 65535)
-            return new CreateServerResult(false, safeName, instanceDir, 0, "port must be between 1024 and 65535");
-        if (port is { } requestedPort && usedPorts.Contains(requestedPort))
+        if (port is < 1024 or > 65532)
             return new CreateServerResult(false, safeName, instanceDir, 0,
-                $"port {requestedPort} is already used by another instance");
-        var chosenPort = port ?? ServerInstances.RandomPort(usedPorts);
+                "game port must be between 1024 and 65532 (the Steam query port uses game port + 3)");
+        if (port is { } requestedPort && !ServerInstances.PortPairAvailable(requestedPort, usedPorts))
+            return new CreateServerResult(false, safeName, instanceDir, 0,
+                $"port {requestedPort} or its query port {requestedPort + 3} overlaps another instance");
+        var chosenPort = port ?? ServerInstances.RandomServerPort(usedPorts);
 
         string sourceNote;
         if (!string.IsNullOrWhiteSpace(baseName) && ServerBases.Exists(root, baseName!))
@@ -97,6 +106,7 @@ public sealed class ServerService
         // the exe dir, so a bare name (from DefaultServerCfg or a copied base) would load the install's mission.
         ServerScaffold.EnsureAbsoluteTemplate(Path.Combine(instanceDir, "serverDZ.cfg"), instMission);
         ServerScaffold.EnsureHostname(Path.Combine(instanceDir, "serverDZ.cfg"), friendlyName);
+        ServerScaffold.EnsureNetworkIdentity(Path.Combine(instanceDir, "serverDZ.cfg"), chosenPort);
 
         // Repoint Mission at the new instance. ServerPreset.Build can't (it's pure, no disk) — without this
         // the new instance inherits the active preset's Mission, which may be an absolute path to ANOTHER

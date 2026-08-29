@@ -48,6 +48,19 @@ public static class StateFile
         if (data.Remove(target)) WriteAll(configPath, data);
     }
 
+    /// <summary>Move one tracked process to a new key without disturbing other live instances.
+    /// Used once after upgrade to associate the legacy singleton <c>server</c> entry with the
+    /// then-active named instance.</summary>
+    public static void MoveKey(string configPath, string from, string to)
+    {
+        if (string.Equals(from, to, StringComparison.Ordinal)) return;
+        var data = ReadRaw(configPath);
+        if (!data.TryGetValue(from, out var info) || data.ContainsKey(to)) return;
+        data.Remove(from);
+        data[to] = info;
+        WriteAll(configPath, data);
+    }
+
     private static void WriteAll(string configPath, Dictionary<string, ProcInfo> data)
     {
         var path = Path(configPath);

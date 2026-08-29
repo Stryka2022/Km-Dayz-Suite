@@ -80,6 +80,14 @@ public class DedicatedServerInstallerTests
             var addons = Directory.CreateDirectory(Path.Combine(source, "addons")).FullName;
             File.WriteAllText(Path.Combine(source, DedicatedServerInstaller.ServerExecutable), "server-exe");
             File.WriteAllText(Path.Combine(addons, "data.pbo"), "pbo-data");
+            File.WriteAllText(Path.Combine(source, "serverDZ.cfg"), "source-config");
+            Directory.CreateDirectory(Path.Combine(source, "mpmissions", "dayzOffline.chernarusplus"));
+            File.WriteAllText(Path.Combine(source, "mpmissions", "dayzOffline.chernarusplus", "init.c"),
+                "source-mission");
+            Directory.CreateDirectory(Path.Combine(destination, "mpmissions", "dayzOffline.chernarusplus"));
+            File.WriteAllText(Path.Combine(destination, "serverDZ.cfg"), "instance-config");
+            File.WriteAllText(Path.Combine(destination, "mpmissions", "dayzOffline.chernarusplus", "init.c"),
+                "instance-mission");
             var messages = new List<string>();
 
             var result = await DedicatedServerInstaller.CopyExistingInstallAsync(
@@ -89,8 +97,22 @@ public class DedicatedServerInstallerTests
             File.ReadAllText(Path.Combine(destination, DedicatedServerInstaller.ServerExecutable))
                 .Should().Be("server-exe");
             File.ReadAllText(Path.Combine(destination, "addons", "data.pbo")).Should().Be("pbo-data");
+            File.ReadAllText(Path.Combine(destination, "serverDZ.cfg")).Should().Be("instance-config");
+            File.ReadAllText(Path.Combine(destination, "mpmissions", "dayzOffline.chernarusplus", "init.c"))
+                .Should().Be("instance-mission");
             messages.Should().Contain(message => message.Contains("100%"));
         }
         finally { root.Delete(recursive: true); }
     }
+
+    [Theory]
+    [InlineData("serverDZ.cfg", true)]
+    [InlineData("mpmissions\\dayzOffline.chernarusplus\\init.c", true)]
+    [InlineData("profiles\\server.RPT", true)]
+    [InlineData("profiles_client\\client.RPT", true)]
+    [InlineData(".dzl\\metadata.json", true)]
+    [InlineData("DayZServer_x64.exe", false)]
+    [InlineData("addons\\data.pbo", false)]
+    public void Instance_owned_content_is_preserved_during_runtime_copy(string path, bool expected)
+        => DedicatedServerInstaller.IsInstanceOwnedPath(path).Should().Be(expected);
 }

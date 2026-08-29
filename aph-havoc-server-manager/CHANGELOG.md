@@ -4,6 +4,26 @@ All notable changes to dzl are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the app is versioned by
 git tag (`v*`), which the release workflow turns into a Velopack release.
 
+## [0.1.35-km.13] - 2026-08-29
+
+### Added
+- Every online instance row now has independent Start and Stop controls, a live PID badge and
+  per-instance process tracking, so several DayZ servers can run together while **Use** only selects
+  the instance being edited.
+- Existing split-layout instances can install their verified DayZ runtime into the instance/config
+  folder from the row menu. Instance configuration, mission, profiles and persistence are preserved.
+
+### Changed
+- New online instances default to one complete runnable folder containing `DayZServer_x64.exe`,
+  `serverDZ.cfg`, `mpmissions`, profiles and runtime files. Interrupted runtime copies remain
+  resumable without damaging the instance-owned content.
+- Each instance now receives a distinct `instanceId` and Steam query port (`game port + 3`), and new
+  port selection reserves both ports to prevent collisions between concurrently running servers.
+
+### Fixed
+- Starting one named server no longer overwrites another server's tracked PID or blocks other
+  instances from starting. Legacy singleton process state is migrated to the active named instance.
+
 ## [0.1.35-km.12] - 2026-08-29
 
 ### Added

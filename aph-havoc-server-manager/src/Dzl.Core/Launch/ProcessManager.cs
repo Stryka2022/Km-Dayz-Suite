@@ -31,13 +31,18 @@ public static class ProcessManager
     public static string ServerExe(DzlConfig c, string mode) => mode == "debug" ? c.ExeDebug : c.ExeNormal;
     public static string ClientExe(DzlConfig c, string mode) => mode == "debug" ? c.ClientExeDebug : c.ClientExeNormal;
 
+    /// <summary>Each named server gets its own process-state key so several instances can run
+    /// concurrently without one launch overwriting another instance's PID.</summary>
+    public static string ServerStateKey(string instanceName) => $"server:{instanceName.Trim()}";
+
     /// <summary>Install dir for the dedicated server (normal mode). An instance override wins, then
     /// the machine-wide dedicated install, then the DayZ client install.</summary>
     public static string ServerInstallPath(DzlConfig c) =>
         !string.IsNullOrWhiteSpace(c.ServerInstallPathOverride) ? c.ServerInstallPathOverride.Trim() :
         !string.IsNullOrWhiteSpace(c.DayzServerPath) ? c.DayzServerPath.Trim() : c.DayzPath;
 
-    public static Process Spawn(string mode, string target, DzlConfig cfg, string source = "cli", string? configPath = null, bool connect = true)
+    public static Process Spawn(string mode, string target, DzlConfig cfg, string source = "cli",
+        string? configPath = null, bool connect = true, string? stateKey = null)
     {
         var exe = target == "server" ? ServerExe(cfg, mode) : ClientExe(cfg, mode);
         var installDir = target == "server" && mode == "normal" ? ServerInstallPath(cfg) : cfg.DayzPath;
@@ -45,6 +50,8 @@ public static class ProcessManager
         // $currentdir to the exe dir, so a bare template name would load the install's mission instead.
         if (target == "server" && MissionLocator.Resolve(cfg)?.MissionDir is { } missionDir)
             ServerScaffold.EnsureAbsoluteTemplate(cfg.ConfigName, missionDir);
+        if (target == "server")
+            ServerScaffold.EnsureNetworkIdentity(cfg.ConfigName, cfg.Port);
         var psi = new ProcessStartInfo
         {
             FileName = Path.Combine(installDir, exe),
@@ -55,13 +62,14 @@ public static class ProcessManager
         };
         foreach (var a in ArgvBuilder.Build(mode, target, cfg, connect)) psi.ArgumentList.Add(a);
         var proc = Process.Start(psi) ?? throw new InvalidOperationException($"failed to start {exe}");
-        if (configPath is not null) StateFile.Write(configPath, target, proc.Id, mode, source, exe);
+        if (configPath is not null) StateFile.Write(configPath, stateKey ?? target, proc.Id, mode, source, exe);
         return proc;
     }
 
-    public static void Stop(string target, DzlConfig cfg, string configPath)
+    public static void Stop(string target, DzlConfig cfg, string configPath, string? stateKey = null)
     {
-        var info = StateFile.ReadRaw(configPath).GetValueOrDefault(target);
+        var key = stateKey ?? target;
+        var info = StateFile.ReadRaw(configPath).GetValueOrDefault(key);
         if (info is not null)
         {
             var img = ImageOf(info.Pid);
@@ -72,12 +80,13 @@ public static class ProcessManager
                 catch (InvalidOperationException) { /* already exited */ }
             }
         }
-        StateFile.Clear(configPath, target);
+        StateFile.Clear(configPath, key);
     }
 
-    public static Process Restart(string mode, DzlConfig cfg, string configPath, string source = "cli")
+    public static Process Restart(string mode, DzlConfig cfg, string configPath, string source = "cli",
+        string? stateKey = null)
     {
-        Stop("server", cfg, configPath);
-        return Spawn(mode, "server", cfg, source, configPath);
+        Stop("server", cfg, configPath, stateKey);
+        return Spawn(mode, "server", cfg, source, configPath, stateKey: stateKey);
     }
 }

@@ -79,14 +79,16 @@ public static class DedicatedServerInstaller
                     cancellationToken.ThrowIfCancellationRequested();
                     var sourceFile = files[index];
                     var relative = Path.GetRelativePath(source, sourceFile);
-                    var destinationFile = Path.Combine(destination, relative);
-                    Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
-
                     var sourceInfo = new FileInfo(sourceFile);
-                    var destinationInfo = new FileInfo(destinationFile);
-                    if (!destinationInfo.Exists || destinationInfo.Length != sourceInfo.Length
-                                                || destinationInfo.LastWriteTimeUtc != sourceInfo.LastWriteTimeUtc)
-                        File.Copy(sourceFile, destinationFile, overwrite: true);
+                    if (!IsInstanceOwnedPath(relative))
+                    {
+                        var destinationFile = Path.Combine(destination, relative);
+                        Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
+                        var destinationInfo = new FileInfo(destinationFile);
+                        if (!destinationInfo.Exists || destinationInfo.Length != sourceInfo.Length
+                                                    || destinationInfo.LastWriteTimeUtc != sourceInfo.LastWriteTimeUtc)
+                            File.Copy(sourceFile, destinationFile, overwrite: true);
+                    }
 
                     completedBytes += sourceInfo.Length;
                     if (lastReport.ElapsedMilliseconds >= 400 || index == files.Length - 1)
@@ -105,6 +107,19 @@ public static class DedicatedServerInstaller
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex) { return (false, ex.Message); }
+    }
+
+    /// <summary>Configuration, mission and persistence content belongs to the named instance and
+    /// must survive a runtime install/repair copied into the same folder.</summary>
+    public static bool IsInstanceOwnedPath(string relativePath)
+    {
+        var normalized = relativePath.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+        var first = normalized.Split(Path.DirectorySeparatorChar, 2)[0];
+        return first.Equals("serverDZ.cfg", StringComparison.OrdinalIgnoreCase)
+               || first.Equals("mpmissions", StringComparison.OrdinalIgnoreCase)
+               || first.Equals("profiles", StringComparison.OrdinalIgnoreCase)
+               || first.Equals("profiles_client", StringComparison.OrdinalIgnoreCase)
+               || first.Equals(".dzl", StringComparison.OrdinalIgnoreCase);
     }
 
     public static async Task<(bool ok, string message)> InstallAsync(

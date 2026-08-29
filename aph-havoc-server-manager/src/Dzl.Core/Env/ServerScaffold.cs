@@ -25,7 +25,8 @@ allowFilePatching = 1;       // dev: accept clients launched with -filePatching 
 disableVoN = 0;
 vonCodecQuality = 20;
 
-instanceId = 1;
+instanceId = 2302;
+steamQueryPort = 2305;
 serverTimePersistent = 1;
 storeHouseStateDisabled = false;
 storageAutoFix = 1;
@@ -176,6 +177,33 @@ class Missions
             File.WriteAllText(cfgPath, rx.IsMatch(text) ? rx.Replace(text, desired, 1) : desired + Environment.NewLine + text);
         }
         catch { /* best-effort */ }
+    }
+
+    /// <summary>Give every server process on the machine its own DayZ instance identifier and
+    /// Steam query port. The query port follows the official server-config convention of game
+    /// port + 3; creation reserves the pair so two managed instances cannot collide.</summary>
+    public static void EnsureNetworkIdentity(string cfgPath, int gamePort)
+    {
+        try
+        {
+            if (!File.Exists(cfgPath) || gamePort is < 1024 or > 65532) return;
+            var text = File.ReadAllText(cfgPath);
+            text = UpsertIntSetting(text, "instanceId", gamePort);
+            text = UpsertIntSetting(text, "steamQueryPort", gamePort + 3);
+            File.WriteAllText(cfgPath, text);
+        }
+        catch { /* best-effort */ }
+    }
+
+    private static string UpsertIntSetting(string text, string key, int value)
+    {
+        var desired = $"{key} = {value};";
+        var rx = new Regex($@"{Regex.Escape(key)}\s*=\s*\d+\s*;", RegexOptions.IgnoreCase);
+        if (rx.IsMatch(text)) return rx.Replace(text, desired, 1);
+        var missionIndex = text.IndexOf("class Missions", StringComparison.OrdinalIgnoreCase);
+        return missionIndex >= 0
+            ? text.Insert(missionIndex, desired + Environment.NewLine)
+            : text + Environment.NewLine + desired + Environment.NewLine;
     }
 
     /// <summary>Append <c>allowFilePatching = 1;</c> to a serverDZ.cfg if it's missing (dev clients

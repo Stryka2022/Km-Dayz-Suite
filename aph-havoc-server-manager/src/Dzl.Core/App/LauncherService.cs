@@ -37,9 +37,17 @@ public sealed class LauncherService
             ? new TargetState("up", i.Source, i.Mode, i.Pid)
             : new TargetState("down", null, null, null);
 
+    private string ServerKey(string active)
+    {
+        var key = ProcessManager.ServerStateKey(string.IsNullOrWhiteSpace(active) ? "default" : active);
+        StateFile.MoveKey(_configPath, "server", key);
+        return key;
+    }
+
     public StatusReport Status()
     {
         var (cfg, _, active) = Resolve();
+        var serverKey = ServerKey(active);
         var live = StateFile.ReadLive(_configPath, ProcessManager.ImageOf);
         var logs = LogResolver.Resolve(cfg.ProfilesPath, cfg.ClientProfilesPath);
         var paths = new Dictionary<string, string>
@@ -54,7 +62,7 @@ public sealed class LauncherService
         };
         var mods = cfg.Mods.Where(m => m.Enabled).Select(m => new ModView(m.Path, m.Side)).ToList();
         return new StatusReport(cfg.Mode, cfg.Port, string.IsNullOrEmpty(active) ? null : active,
-            TargetOf(live, "server"), TargetOf(live, "client"), paths, mods, logs);
+            TargetOf(live, serverKey), TargetOf(live, "client"), paths, mods, logs);
     }
 
     public IReadOnlyList<ModView> Mods()
@@ -159,12 +167,13 @@ public sealed class LauncherService
     private static OpResult? OfflineGuard(DzlConfig cfg) =>
         cfg.OfflineMode ? new OpResult(false, "offline instance has no server — start the client instead") : null;
 
-    /// <summary>A live recorded process for the target blocks a second spawn — a duplicate would
-    /// orphan the first from dzl's tracking (the statefile keeps one PID per target).</summary>
-    private OpResult? AlreadyUpGuard(string target)
+    /// <summary>A live recorded process for the same instance/target blocks a duplicate spawn.
+    /// Other named server keys remain independent so their processes may run concurrently.</summary>
+    private OpResult? AlreadyUpGuard(string target, string active)
     {
+        var key = target == "server" ? ServerKey(active) : target;
         var live = StateFile.ReadLive(_configPath, ProcessManager.ImageOf);
-        return live.TryGetValue(target, out var i)
+        return live.TryGetValue(key, out var i)
             ? new OpResult(false, $"{target} already up (pid {i.Pid}, {i.Source}/{i.Mode}) — stop or restart it instead")
             : null;
     }
@@ -173,14 +182,15 @@ public sealed class LauncherService
     /// <c>-connect</c>/<c>-port</c>, so it stays in the main menu instead of auto-joining.</summary>
     public OpResult Start(string mode, bool client, string source = "cli", bool noConnect = false)
     {
-        var (cfg, _, _) = Resolve();
+        var (cfg, _, active) = Resolve();
         if (OfflineGuard(cfg) is { } blocked) return blocked;
-        if (AlreadyUpGuard("server") is { } up) return up;
-        if (client && AlreadyUpGuard("client") is { } upC) return upC;
+        if (AlreadyUpGuard("server", active) is { } up) return up;
+        if (client && AlreadyUpGuard("client", active) is { } upC) return upC;
         AutoLaunchTrayIfWanted(cfg, source);
         return Op(() =>
         {
-            ProcessManager.Spawn(mode, "server", cfg, source, _configPath);
+            ProcessManager.Spawn(mode, "server", cfg, source, _configPath,
+                stateKey: ServerKey(active));
             if (client) ProcessManager.Spawn(mode, "client", cfg, source, _configPath, connect: !noConnect);
             return $"started server{(client ? $" + client{(noConnect ? " (no connect)" : "")}" : "")} ({mode})";
         });
@@ -188,10 +198,10 @@ public sealed class LauncherService
 
     public OpResult Stop(bool client, string source = "cli")  // source unused by Stop; keep for symmetry
     {
-        var (cfg, _, _) = Resolve();
+        var (cfg, _, active) = Resolve();
         return Op(() =>
         {
-            ProcessManager.Stop("server", cfg, _configPath);
+            ProcessManager.Stop("server", cfg, _configPath, ServerKey(active));
             if (client) ProcessManager.Stop("client", cfg, _configPath);
             return $"stopped server{(client ? " + client" : "")}";
         });
@@ -199,11 +209,11 @@ public sealed class LauncherService
 
     public OpResult Restart(string mode, string source = "cli")
     {
-        var (cfg, _, _) = Resolve();
+        var (cfg, _, active) = Resolve();
         if (OfflineGuard(cfg) is { } blocked) return blocked;
         return Op(() =>
         {
-            ProcessManager.Restart(mode, cfg, _configPath, source);
+            ProcessManager.Restart(mode, cfg, _configPath, source, ServerKey(active));
             return $"restarted server ({mode})";
         });
     }
@@ -213,36 +223,77 @@ public sealed class LauncherService
     /// never connects regardless of the flag.</summary>
     public OpResult StartTarget(string target, string mode, string source = "tui", bool connect = true)
     {
-        var (cfg, _, _) = Resolve();
+        var (cfg, _, active) = Resolve();
         if (target == "server" && OfflineGuard(cfg) is { } blocked) return blocked;
-        if (AlreadyUpGuard(target) is { } up) return up;
+        if (AlreadyUpGuard(target, active) is { } up) return up;
         AutoLaunchTrayIfWanted(cfg, source);
         var doConnect = connect && !cfg.OfflineMode;
         return Op(() =>
         {
-            ProcessManager.Spawn(mode, target, cfg, source, _configPath, doConnect);
+            ProcessManager.Spawn(mode, target, cfg, source, _configPath, doConnect,
+                target == "server" ? ServerKey(active) : null);
             return $"started {target} ({mode}){(target == "client" && !doConnect ? " (no connect)" : "")}";
+        });
+    }
+
+    /// <summary>Start one named server without changing the active editor instance. Its PID is
+    /// tracked under a per-instance key, allowing other named servers to remain running.</summary>
+    public OpResult StartServerInstance(string name, string source = "tui")
+    {
+        Profiles.EnsureDefault(_configPath);
+        var actual = Profiles.List(_configPath)
+            .FirstOrDefault(item => item.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (actual is null) return new OpResult(false, $"no instance '{name}'");
+        var cfg = Profiles.Load(actual, _configPath);
+        if (OfflineGuard(cfg) is { } blocked) return blocked;
+        var key = ProcessManager.ServerStateKey(actual);
+        var live = StateFile.ReadLive(_configPath, ProcessManager.ImageOf);
+        if (live.TryGetValue(key, out var info))
+            return new OpResult(false, $"server already up (pid {info.Pid}, {info.Source}/{info.Mode})");
+        AutoLaunchTrayIfWanted(cfg, source);
+        return Op(() =>
+        {
+            var process = ProcessManager.Spawn(cfg.Mode, "server", cfg, source, _configPath,
+                stateKey: key);
+            return $"started '{(string.IsNullOrWhiteSpace(cfg.DisplayName) ? actual : cfg.DisplayName)}' " +
+                   $"on port {cfg.Port} (pid {process.Id})";
+        });
+    }
+
+    /// <summary>Stop only the selected named server; other instance PIDs are left untouched.</summary>
+    public OpResult StopServerInstance(string name, string source = "tui")
+    {
+        Profiles.EnsureDefault(_configPath);
+        var actual = Profiles.List(_configPath)
+            .FirstOrDefault(item => item.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (actual is null) return new OpResult(false, $"no instance '{name}'");
+        var cfg = Profiles.Load(actual, _configPath);
+        return Op(() =>
+        {
+            ProcessManager.Stop("server", cfg, _configPath, ProcessManager.ServerStateKey(actual));
+            return $"stopped '{(string.IsNullOrWhiteSpace(cfg.DisplayName) ? actual : cfg.DisplayName)}'";
         });
     }
 
     public OpResult StopTarget(string target, string source = "tui")
     {
-        var (cfg, _, _) = Resolve();
+        var (cfg, _, active) = Resolve();
         return Op(() =>
         {
-            ProcessManager.Stop(target, cfg, _configPath);
+            ProcessManager.Stop(target, cfg, _configPath,
+                target == "server" ? ServerKey(active) : null);
             return $"stopped {target}";
         });
     }
 
     public OpResult RestartTarget(string target, string mode, string source = "tui")
     {
-        var (cfg, _, _) = Resolve();
+        var (cfg, _, active) = Resolve();
         if (target == "server" && OfflineGuard(cfg) is { } blocked) return blocked;
         return Op(() =>
         {
             if (target == "server")
-                ProcessManager.Restart(mode, cfg, _configPath, source);
+                ProcessManager.Restart(mode, cfg, _configPath, source, ServerKey(active));
             else
             {
                 ProcessManager.Stop(target, cfg, _configPath);
