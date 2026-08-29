@@ -196,6 +196,10 @@
                                 <MenuItem.Icon><ui:SymbolIcon Symbol="Apps24" /></MenuItem.Icon>
                               </MenuItem>
                               <Separator />
+                              <MenuItem Header="Install / repair dedicated server" Tag="{Binding Name}"
+                                        Click="OnRepairDedicatedServer">
+                                <MenuItem.Icon><ui:SymbolIcon Symbol="ArrowDownload24" /></MenuItem.Icon>
+                              </MenuItem>
                               <MenuItem Header="Open folder" Tag="{Binding Dir}" Click="OnOpenServerFolder">
                                 <MenuItem.Icon><ui:SymbolIcon Symbol="FolderOpen24" /></MenuItem.Icon>
                               </MenuItem>

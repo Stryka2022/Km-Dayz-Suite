@@ -58,17 +58,20 @@ APH Havoc Server Manager. The obsolete upstream website button was removed and p
 links now target https://github.com/Stryka2022/Km-Dayz-Suite. Server editors and the
 setup wizard were converted into inline embedded pages, and new instances gained
 friendly display names, unique safe folders, editable collision-free random ports and
-optional per-instance DayZ Dedicated Server installs. Those installs now use the chosen
-parent path plus the safe server name, require an owned Steam account, verify the actual
-DayZServer executable before success, roll back failed instances, detect the LAN IP and
-write the server display name into serverDZ.cfg. Windows/Linux platform, CPU,
+optional per-instance DayZ Dedicated Server installs. Those installs use the chosen
+parent path plus the safe server name, require an owned Steam account when SteamCMD is needed,
+verify the actual DayZServer executable before success, detect the LAN IP and write the server
+display name into serverDZ.cfg. An existing configured official DayZ Dedicated Server can seed
+each isolated instance with a resumable progress-reporting copy, avoiding a duplicate download;
+failed downloads now keep their recoverable instance and partial files for the new row-level repair
+action. Windows/Linux platform, CPU,
 installed .NET SDK/runtime and .NET 11 detection were added to setup, About and the
 headless CLI. Steam QR/password authentication now uses the supported Steam Client
 session flow, safely cancels competing attempts, verifies encrypted session persistence,
 and the companion executable uses the KM DayZ Suite icon. Invalid window-resource icon
 markup was removed, embedded navigation collapse is deterministic, and startup/page
 navigation avoids redundant editor recounts and background polling. The companion version
-for these changes is 0.1.35-km.11.
+for these changes is 0.1.35-km.12.
 Original upstream authorship, copyright and GPL licensing are retained in this legal
 notice and the corresponding source history. Public distribution and modifications
 are presented under the APH Havoc name without claiming ownership of upstream work.

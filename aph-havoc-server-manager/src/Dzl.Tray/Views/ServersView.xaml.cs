@@ -116,16 +116,17 @@ public partial class ServersView : UserControl
         _creatingServer = true;
         NewServerButton.IsEnabled = false;
         NewServerStatus.Text = installDedicated
-            ? "creating instance and installing DayZ Dedicated Server with SteamCMD…"
+            ? "creating instance and preparing its DayZ Dedicated Server files…"
             : "creating… (copying mission template — this can take a moment)";
         try
         {
+            var progress = new Progress<string>(message => NewServerStatus.Text = message);
             NewServerStatus.Text = await Vm.CreateServerAsync(displayName, folderName, map, port,
-                baseName, modPreset, offline, installPath, installDedicated, connectIp);
+                baseName, modPreset, offline, installPath, installDedicated, connectIp, progress);
         }
         catch (Exception ex) { NewServerStatus.Text = "✗ " + ex.Message; }
         finally { NewServerButton.IsEnabled = true; _creatingServer = false; }
-        if (NewServerStatus.Text.StartsWith('✓'))
+        if (NewServerStatus.Text.StartsWith('✓') || NewServerStatus.Text.StartsWith('⚠'))
         {
             NewServerNameBox.Text = "";
             NewServerFolderBox.Text = "";
@@ -194,6 +195,22 @@ public partial class ServersView : UserControl
         if (msg.StartsWith('✗'))
             System.Windows.MessageBox.Show(msg.TrimStart('✗', ' '), "Open in editor",
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+    }
+
+    private bool _repairingDedicatedServer;
+
+    private async void OnRepairDedicatedServer(object sender, RoutedEventArgs e)
+    {
+        if (Vm is null || _repairingDedicatedServer || sender is not FrameworkElement { Tag: string name }) return;
+        _repairingDedicatedServer = true;
+        NewServerStatus.Text = $"installing / repairing the DayZ Dedicated Server for {name}…";
+        try
+        {
+            var progress = new Progress<string>(message => NewServerStatus.Text = message);
+            NewServerStatus.Text = await Vm.RepairDedicatedServerAsync(name, progress);
+        }
+        catch (Exception ex) { NewServerStatus.Text = "✗ " + ex.Message; }
+        finally { _repairingDedicatedServer = false; }
     }
 
     private void OnWipeServerPersistence(object sender, RoutedEventArgs e)

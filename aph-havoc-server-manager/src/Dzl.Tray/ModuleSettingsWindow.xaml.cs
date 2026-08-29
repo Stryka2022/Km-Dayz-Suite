@@ -62,7 +62,7 @@ public partial class ModuleSettingsWindow : FluentWindow
             return;
         }
         SteamStatus.Text = _vm.SteamSignedIn
-            ? $"✓ Signed in as {_vm.Cfg.SteamLogin} — Subscribe and Download ready."
+            ? $"✓ Signed in as {_vm.Cfg.SteamLogin} for Subscribe. SteamCMD may request a separate console sign-in for Download."
             : "Not signed in — Subscribe opens the Steam page instead.";
     }
 

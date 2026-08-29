@@ -34,7 +34,8 @@ public partial class MainViewModel
     public async Task<string> CreateServerAsync(string displayName, string folderName, string map, int? port,
                                                 string? baseName = null, string? modPreset = null,
                                                 bool offline = false, string? dedicatedInstallPath = null,
-                                                bool installDedicatedServer = false, string? connectIp = null)
+                                                bool installDedicatedServer = false, string? connectIp = null,
+                                                IProgress<string>? installProgress = null)
     {
         var cp = _configPath;
         var safeFolderName = ProjectPaths.SafeInstanceName(folderName);
@@ -43,15 +44,15 @@ public partial class MainViewModel
         {
             if (string.IsNullOrWhiteSpace(dedicatedInstallPath))
                 return "✗ choose a parent folder for the DayZ Dedicated Server install";
-            if (string.IsNullOrWhiteSpace(_cfg.SteamLogin))
-                return "✗ Steam account name required: sign in under Settings → Accounts, then create the instance again";
             resolvedInstallPath = DedicatedServerInstaller.ResolveInstanceInstallPath(
                 dedicatedInstallPath, safeFolderName);
+            if (DedicatedServerInstaller.FindReusableInstall(_cfg, resolvedInstallPath) is null
+                && string.IsNullOrWhiteSpace(_cfg.SteamLogin))
+                return "✗ no local DayZ Server install was found. Set the Steam account name in Settings " +
+                       "for the separate SteamCMD console login, then create the instance again";
         }
 
-        // Keep the previous active instance so a SteamCMD failure can be rolled back completely.
         Profiles.EnsureDefault(cp);
-        var previousActive = Profiles.ResolveActive(cp).active;
         // The mission-template copy can be hundreds of MB — run it off the UI thread; the
         // active-preset reload + server-list refresh hop back afterward.
         var res = await Task.Run(() => new ServerService(cp).Create(
@@ -67,20 +68,17 @@ public partial class MainViewModel
 
         if (installDedicatedServer)
         {
-            var install = await DedicatedServerInstaller.InstallAsync(cp, resolvedInstallPath!);
+            var install = await DedicatedServerInstaller.InstallAsync(
+                cp, resolvedInstallPath!, installProgress);
             if (!install.ok)
             {
-                // The dedicated install is external by default. Preserve it for a SteamCMD retry,
-                // but remove the just-created instance/scaffold so a failed install never appears
-                // as a usable server. If the user deliberately put it inside the instance folder,
-                // remove only dzl's record so partial downloaded files are still safe.
-                var installInsideInstance = IsInsideOrEqual(resolvedInstallPath!, res.Dir);
-                Profiles.Delete(res.Name, cp, removeFolder: !installInsideInstance);
-                Profiles.SetActive(previousActive, cp);
+                // Keep the valid instance/scaffold and its install path so authentication, disk or
+                // network failures are recoverable from the row's Install / repair action.
                 Reload();
                 RefreshServers();
-                return $"✗ dedicated server install failed; '{displayName}' was rolled back. " +
-                       $"Partial Steam files were kept at {resolvedInstallPath} for retry. {install.message}";
+                return $"⚠ '{displayName}' was created, but the dedicated server files are incomplete. " +
+                       $"Partial files were kept at {resolvedInstallPath}. Use ⋯ → Install / repair dedicated " +
+                       $"server to retry. {install.message}";
             }
         }
 
@@ -113,16 +111,27 @@ public partial class MainViewModel
     public static string ResolveDedicatedInstallPath(string selectedPath, string folderName) =>
         DedicatedServerInstaller.ResolveInstanceInstallPath(selectedPath, folderName);
 
+    /// <summary>Install, resume or repair the dedicated server files for an existing instance.</summary>
+    public async Task<string> RepairDedicatedServerAsync(string name, IProgress<string>? progress = null)
+    {
+        if (!Profiles.List(_configPath).Contains(name)) return $"✗ no instance '{name}'";
+        var cfg = Profiles.Load(name, _configPath);
+        var displayName = string.IsNullOrWhiteSpace(cfg.DisplayName) ? name : cfg.DisplayName;
+        if (string.IsNullOrWhiteSpace(cfg.ServerInstallPathOverride))
+            return $"✗ '{displayName}' has no dedicated install folder configured";
+
+        Profiles.SetActive(name, _configPath);
+        Reload();
+        var install = await DedicatedServerInstaller.InstallAsync(
+            _configPath, cfg.ServerInstallPathOverride, progress);
+        RefreshServers();
+        return install.ok
+            ? $"✓ {install.message}"
+            : $"✗ install / repair failed for '{displayName}'. {install.message}";
+    }
+
     /// <summary>Detect the preferred active LAN IPv4 address for a new or existing server.</summary>
     public static string DetectServerIp() => ServerNetwork.DetectConnectIp();
-
-    private static bool IsInsideOrEqual(string candidate, string parent)
-    {
-        var child = Path.GetFullPath(candidate).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var root = Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        return child.Equals(root, StringComparison.OrdinalIgnoreCase)
-               || child.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
-    }
 
     /// <summary>Switch the active preset to a server instance's preset (by name).</summary>
     public string UseServer(string name)

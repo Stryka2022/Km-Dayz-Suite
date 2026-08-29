@@ -1,3 +1,4 @@
+using Dzl.Core.Config;
 using Dzl.Core.Workshop;
 using FluentAssertions;
 
@@ -5,6 +6,11 @@ namespace Dzl.Core.Tests;
 
 public class DedicatedServerInstallerTests
 {
+    private sealed class CaptureProgress(List<string> messages) : IProgress<string>
+    {
+        public void Report(string value) => messages.Add(value);
+    }
+
     [Fact]
     public void ResolveInstanceInstallPath_appends_the_safe_server_name_to_a_parent_folder()
     {
@@ -44,5 +50,47 @@ public class DedicatedServerInstallerTests
         File.WriteAllText(Path.Combine(install, DedicatedServerInstaller.ServerExecutable), "test");
 
         DedicatedServerInstaller.IsInstalled(install).Should().BeTrue();
+    }
+
+    [Fact]
+    public void FindReusableInstall_prefers_the_configured_local_server_install()
+    {
+        var root = Directory.CreateTempSubdirectory();
+        try
+        {
+            var source = Directory.CreateDirectory(Path.Combine(root.FullName, "Steam DayZServer")).FullName;
+            var destination = Path.Combine(root.FullName, "instances", "PVE_1");
+            File.WriteAllText(Path.Combine(source, DedicatedServerInstaller.ServerExecutable), "server");
+
+            DedicatedServerInstaller.FindReusableInstall(
+                    DzlConfig.Default() with { DayzServerPath = source }, destination)
+                .Should().Be(Path.GetFullPath(source));
+        }
+        finally { root.Delete(recursive: true); }
+    }
+
+    [Fact]
+    public async Task CopyExistingInstall_copies_and_verifies_a_local_server_with_progress()
+    {
+        var root = Directory.CreateTempSubdirectory();
+        try
+        {
+            var source = Directory.CreateDirectory(Path.Combine(root.FullName, "source")).FullName;
+            var destination = Path.Combine(root.FullName, "destination");
+            var addons = Directory.CreateDirectory(Path.Combine(source, "addons")).FullName;
+            File.WriteAllText(Path.Combine(source, DedicatedServerInstaller.ServerExecutable), "server-exe");
+            File.WriteAllText(Path.Combine(addons, "data.pbo"), "pbo-data");
+            var messages = new List<string>();
+
+            var result = await DedicatedServerInstaller.CopyExistingInstallAsync(
+                source, destination, new CaptureProgress(messages));
+
+            result.ok.Should().BeTrue(result.message);
+            File.ReadAllText(Path.Combine(destination, DedicatedServerInstaller.ServerExecutable))
+                .Should().Be("server-exe");
+            File.ReadAllText(Path.Combine(destination, "addons", "data.pbo")).Should().Be("pbo-data");
+            messages.Should().Contain(message => message.Contains("100%"));
+        }
+        finally { root.Delete(recursive: true); }
     }
 }

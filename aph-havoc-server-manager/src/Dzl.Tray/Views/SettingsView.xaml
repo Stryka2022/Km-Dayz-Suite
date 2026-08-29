@@ -81,7 +81,7 @@
               <ui:Button Grid.Column="3" Content="Logout" Click="OnSteamSignOut" />
             </Grid>
             <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                       Text="Steam sign-in (QR or password) powers Workshop Subscribe and lets steamcmd download owner-gated DayZ items as your account. Publishing reuses your running Steam client (Publisher.exe)." />
+                       Text="Steam sign-in (QR or password) powers Workshop Subscribe. SteamCMD is a separate Valve client and requests its own password / Steam Guard approval when no cached login exists. Publishing reuses your running Steam client (Publisher.exe)." />
             <TextBlock x:Name="SteamSignInStatus" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
                        Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
           </StackPanel>

@@ -4,6 +4,24 @@ All notable changes to dzl are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the app is versioned by
 git tag (`v*`), which the release workflow turns into a Velopack release.
 
+## [0.1.35-km.12] - 2026-08-29
+
+### Added
+- Dedicated server instances can now be installed or repaired again from their row menu. Interrupted
+  installs remain as recoverable instances with their partial files and configured destination intact.
+
+### Changed
+- New isolated instances are seeded from an already-installed official DayZ Dedicated Server when one
+  is configured. The resumable copy reports progress and avoids SteamCMD authentication and a second
+  multi-gigabyte download.
+- When no reusable local server is available, the SteamCMD fallback now explains that it has a separate
+  interactive sign-in and that password characters are intentionally hidden in its console.
+
+### Fixed
+- Closing or interrupting SteamCMD no longer deletes the newly-created instance, and its Windows cancel
+  exit code now produces actionable sign-in and retry guidance.
+- Steam QR/password session copy no longer implies that SteamCMD inherits the SteamKit session.
+
 ## [0.1.35-km.11] - 2026-08-29
 
 ### Changed

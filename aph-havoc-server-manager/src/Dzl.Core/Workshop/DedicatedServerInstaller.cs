@@ -37,15 +37,96 @@ public static class DedicatedServerInstaller
     public static bool IsInstalled(string installPath) =>
         File.Exists(Path.Combine(installPath, ServerExecutable));
 
+    /// <summary>Return an already-installed Steam copy that can seed an isolated instance.
+    /// Reusing the local official files avoids a second SteamCMD sign-in and a multi-gigabyte
+    /// download. The destination itself is returned when it is already complete.</summary>
+    public static string? FindReusableInstall(DzlConfig cfg, string installPath)
+    {
+        if (IsInstalled(installPath)) return Path.GetFullPath(installPath);
+        if (string.IsNullOrWhiteSpace(cfg.DayzServerPath)) return null;
+        var source = Path.GetFullPath(cfg.DayzServerPath.Trim());
+        return IsInstalled(source) ? source : null;
+    }
+
+    /// <summary>Copy an existing official DayZ Server installation into an isolated instance.
+    /// Matching files are skipped so an interrupted copy can be resumed cheaply.</summary>
+    public static async Task<(bool ok, string message)> CopyExistingInstallAsync(
+        string sourcePath, string installPath, IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var source = Path.GetFullPath(sourcePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var destination = Path.GetFullPath(installPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (!IsInstalled(source))
+                return (false, $"no valid DayZ Dedicated Server installation was found at {source}");
+            if (source.Equals(destination, StringComparison.OrdinalIgnoreCase))
+                return (true, $"DayZ Dedicated Server is already installed at {destination}");
+            if (destination.StartsWith(source + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                return (false, "the instance install folder cannot be inside the source DayZ Server folder");
+
+            var files = Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories).ToArray();
+            var totalBytes = files.Sum(file => new FileInfo(file).Length);
+            long completedBytes = 0;
+            var lastReport = Stopwatch.StartNew();
+            progress?.Report($"copying the installed DayZ Server into {destination} — 0%");
+
+            await Task.Run(() =>
+            {
+                Directory.CreateDirectory(destination);
+                for (var index = 0; index < files.Length; index++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var sourceFile = files[index];
+                    var relative = Path.GetRelativePath(source, sourceFile);
+                    var destinationFile = Path.Combine(destination, relative);
+                    Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
+
+                    var sourceInfo = new FileInfo(sourceFile);
+                    var destinationInfo = new FileInfo(destinationFile);
+                    if (!destinationInfo.Exists || destinationInfo.Length != sourceInfo.Length
+                                                || destinationInfo.LastWriteTimeUtc != sourceInfo.LastWriteTimeUtc)
+                        File.Copy(sourceFile, destinationFile, overwrite: true);
+
+                    completedBytes += sourceInfo.Length;
+                    if (lastReport.ElapsedMilliseconds >= 400 || index == files.Length - 1)
+                    {
+                        var percent = totalBytes <= 0 ? 100 : (int)Math.Min(100, completedBytes * 100 / totalBytes);
+                        progress?.Report($"copying the installed DayZ Server into {destination} — {percent}% " +
+                                         $"({index + 1}/{files.Length} files)");
+                        lastReport.Restart();
+                    }
+                }
+            }, cancellationToken).ConfigureAwait(false);
+
+            return IsInstalled(destination)
+                ? (true, $"DayZ Dedicated Server copied and verified at {destination}")
+                : (false, $"{ServerExecutable} was not copied to {destination}");
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex) { return (false, ex.Message); }
+    }
+
     public static async Task<(bool ok, string message)> InstallAsync(
-        string configPath, string installPath, CancellationToken cancellationToken = default)
+        string configPath, string installPath, IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
             var (cfg, _, _) = Profiles.ResolveActive(configPath);
+            var reusable = FindReusableInstall(cfg, installPath);
+            if (reusable is not null)
+            {
+                if (Path.GetFullPath(reusable).Equals(Path.GetFullPath(installPath), StringComparison.OrdinalIgnoreCase))
+                    return (true, $"DayZ Dedicated Server is already installed at {installPath}");
+                return await CopyExistingInstallAsync(reusable, installPath, progress, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
             if (string.IsNullOrWhiteSpace(cfg.SteamLogin))
                 return (false, "Steam account name is required because DayZ Dedicated Server app 223350 " +
-                               "does not install anonymously. Sign in under Settings → Accounts, then retry.");
+                               "does not install anonymously. SteamCMD uses a separate console sign-in; " +
+                               "set the Steam account name in Settings, then retry.");
             var steamCmd = ResolveSteamCmd(cfg, configPath);
             if (!File.Exists(steamCmd))
             {
@@ -77,6 +158,9 @@ public static class DedicatedServerInstaller
                     WindowStyle = ProcessWindowStyle.Normal,
                 };
                 foreach (var arg in args) info.ArgumentList.Add(arg);
+                progress?.Report("SteamCMD needs a separate interactive sign-in. In the console, type your " +
+                                 "Steam password (characters stay hidden), press Enter, then complete Steam Guard. " +
+                                 "Do not close the console while the server downloads.");
                 using var process = Process.Start(info);
                 if (process is null) return (false, "could not start steamcmd");
                 await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
@@ -100,6 +184,10 @@ public static class DedicatedServerInstaller
                          ?? capturedOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries)
                              .LastOrDefault(line => line.Contains("error", StringComparison.OrdinalIgnoreCase))?.Trim();
             var suffix = string.IsNullOrWhiteSpace(detail) ? $"steamcmd exited with code {exitCode}" : detail;
+            if (exitCode == unchecked((int)0xC000013A))
+                suffix = "SteamCMD was closed before sign-in/download completed. At the password prompt, type " +
+                         "the Steam password even though no characters are displayed, then press Enter and " +
+                         "complete Steam Guard.";
             return (false, $"{ServerExecutable} was not installed at {installPath}. {suffix}");
         }
         catch (OperationCanceledException) { throw; }
