@@ -37,7 +37,10 @@ When embedded, the server editor and setup wizard stay inside the same KM window
 rail provides direct access to instances, Workshop, notifications/updates, mods, economy,
 FTP/FTPS and RCon, logs, bases, tools, setup, MCP, settings and legal information. Instances have a
 friendly display name, unique safe folder, editable collision-free random port and optional isolated
-DayZ Dedicated Server installation.
+DayZ Dedicated Server installation. Each row opens its own management workspace for graphical
+`serverDZ.cfg` settings, Workshop policy, file/log locations, mods and launch parameters. Workshop
+Install/Update deploys a managed copy under the selected instance's `@Workshop_<item id>` folder;
+uninstall removes only that instance copy and keeps the shared SteamCMD cache for other servers.
 
 ## Build
 

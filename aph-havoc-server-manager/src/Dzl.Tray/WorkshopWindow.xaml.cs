@@ -65,8 +65,8 @@ public partial class WorkshopWindow : UserControl
     {
         if (TargetServerCombo.SelectedItem is Dzl.Core.Servers.ServerInstance server)
             TargetServerStatus.Text = string.IsNullOrWhiteSpace(switchStatus)
-                ? $"Active target  ·  {server.Dir}"
-                : $"{switchStatus}  ·  {server.Dir}";
+                ? $"Installs to  ·  {server.Dir}\\@Workshop_<item id>"
+                : $"{switchStatus}  ·  installs to {server.Dir}\\@Workshop_<item id>";
         else
             TargetServerStatus.Text = "";
     }
@@ -143,7 +143,7 @@ public partial class WorkshopWindow : UserControl
         var title = Vm.WorkshopDetail?.Id == id ? Vm.WorkshopDetail.Title : id;
         var target = string.IsNullOrWhiteSpace(Vm.ActivePreset) ? "default" : Vm.ActivePreset;
         var result = System.Windows.MessageBox.Show(
-            $"Uninstall \"{title}\" from the '{target}' server loadout?\n\nThe shared Workshop files stay on disk for other servers.",
+            $"Uninstall \"{title}\" from '{target}'?\n\nIts managed @Workshop_{id} folder will be removed from this instance. The shared SteamCMD download stays on disk for other servers.",
             "Uninstall Workshop mod", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question);
         if (result == System.Windows.MessageBoxResult.Yes)
             await Vm.UninstallWorkshopFromActiveServerAsync(id);
@@ -265,6 +265,6 @@ public partial class WorkshopWindow : UserControl
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
             return;
         }
-        await Vm.WorkshopDownloadAsync(id);
+        await Vm.InstallWorkshopOnActiveServerAsync(id);
     }
 }

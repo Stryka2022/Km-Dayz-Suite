@@ -4,6 +4,28 @@ All notable changes to dzl are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the app is versioned by
 git tag (`v*`), which the release workflow turns into a Velopack release.
 
+## [0.1.35-km.15] - 2026-08-30
+
+### Added
+- Every server row now opens a single per-instance management workspace with instance paths,
+  graphical `serverDZ.cfg` settings, Workshop update/key policy, file and log locations, mod load
+  order, and launch parameters.
+- The graphical server settings page manages identity/passwords, MOTD, player and login limits,
+  whitelist/signatures, time and lighting, render distances, voice, ping and FPS thresholds while
+  preserving unknown config entries and keeping a `.km-backup` before every save.
+
+### Changed
+- Workshop **Install** is now a complete selected-server operation: it obtains the content and copies
+  it into `<selected instance>\@Workshop_<item id>`, copies public keys for that instance, and adds
+  only that local path to its loadout. **Update** refreshes and replaces that instance's managed copy.
+- Instance rows now use an explicit **Manage** action, so selecting a server and entering its settings
+  are one step. Workshop target copy destinations are shown directly in the browser and editor.
+
+### Fixed
+- Server loadouts no longer point at the shared `DayZProjects\workshop` SteamCMD cache. Uninstalling a
+  target removes its instance-local mod folder and loadout entry while retaining the shared download
+  for other servers.
+
 ## [0.1.35-km.14] - 2026-08-30
 
 ### Added

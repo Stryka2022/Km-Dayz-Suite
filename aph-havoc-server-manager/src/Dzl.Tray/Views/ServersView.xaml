@@ -204,14 +204,14 @@
                         <ui:Button Content="Stop" Icon="{ui:SymbolIcon Stop24}" Tag="{Binding Name}"
                                    Click="OnStopServerInstance" Margin="0,0,8,0"
                                    Visibility="{Binding Running, Converter={StaticResource BoolToVis}}" />
-                        <!-- Use selects the instance for editing; running processes stay independent. -->
-                        <ui:Button Content="Use" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}"
-                                   ToolTip="Make this the active server instance"
-                                   Tag="{Binding Name}" Click="OnUseServer" Margin="0,0,8,0" />
+                        <!-- Manage activates this instance and opens its isolated settings workspace. -->
+                        <ui:Button Content="Manage" Appearance="Primary" Icon="{ui:SymbolIcon Settings24}"
+                                   ToolTip="Open this instance's settings, server config, mods, files and launch options"
+                                   Tag="{Binding Name}" Click="OnManageServer" Margin="0,0,8,0" />
                         <ui:DropDownButton Icon="{ui:SymbolIcon MoreHorizontal24}" ToolTip="More actions">
                           <ui:DropDownButton.Flyout>
                             <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                              <MenuItem Header="Settings…" Tag="{Binding Name}" Click="OnOpenServerSettings">
+                              <MenuItem Header="Manage instance…" Tag="{Binding Name}" Click="OnOpenServerSettings">
                                 <MenuItem.Icon><ui:SymbolIcon Symbol="Settings24" /></MenuItem.Icon>
                               </MenuItem>
                               <MenuItem Header="Mods…" Tag="{Binding Name}" Click="OnOpenServerMods">

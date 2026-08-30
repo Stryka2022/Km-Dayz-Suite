@@ -30,7 +30,7 @@ proprietary licence or RASP branding, and the KM licence does not restrict users
 GPL rights in it.
 
 Modification notice (GNU GPL v3 section 5):
-Modified by the KM DayZ Suite integration through 28 August 2026 to add an explicit
+Modified by the KM DayZ Suite integration through 30 August 2026 to add an explicit
 KM_SUITE_EMBEDDED presentation mode, embedded-process lifecycle behaviour, a
 KM-coloured left-rail Server Manager layout, integrated Workshop and Steam sign-in,
 integrated Economy tools, FTP/explicit-FTPS remote file management with local
@@ -77,8 +77,12 @@ verified runtime into the instance folder without replacing serverDZ.cfg, missio
 persistence. Game/query port pairs and DayZ instance IDs are unique per managed server. The companion
 Workshop now presents state-aware Install, Update and per-target Uninstall actions, shows checked
 selection/target state, wraps action controls, and provides draggable panes plus a full-width details
-view. Per-target uninstall removes only that instance's loadout entry and retains shared downloads.
-The companion version for these changes is 0.1.35-km.14.
+view. Workshop Install/Update now stages a full managed copy inside the selected instance instead of
+putting a shared-cache path in every loadout; target uninstall removes that private copy while leaving
+the SteamCMD cache available to other servers. Each instance now has one management workspace for its
+paths, graphical serverDZ.cfg settings, Workshop policy, files/logs, mods and launch parameters. The
+graphical config editor preserves unknown entries/comments and keeps a pre-save backup.
+The companion version for these changes is 0.1.35-km.15.
 Original upstream authorship, copyright and GPL licensing are retained in this legal
 notice and the corresponding source history. Public distribution and modifications
 are presented under the APH Havoc name without claiming ownership of upstream work.

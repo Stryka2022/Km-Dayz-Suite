@@ -165,6 +165,8 @@ public partial class ServersView : UserControl
             NewServerStatus.Text = Vm.UseServer(name);
     }
 
+    private void OnManageServer(object sender, RoutedEventArgs e) => OpenServerForRow(sender, 0);
+
     // A base fixes its own map (baked into its serverDZ.cfg + mpmission). When one is
     // selected, lock the map dropdown and reflect the base's map; only vanilla is free to pick.
     private void OnNewServerBaseChanged(object sender, SelectionChangedEventArgs e)

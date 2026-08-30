@@ -27,7 +27,7 @@
       <StackPanel Grid.Column="0">
         <TextBlock Text="STEAM WORKSHOP" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource KmOrangeBrush}" />
         <TextBlock Text="Mods, subscriptions and downloads" FontSize="21" FontWeight="Bold" />
-        <TextBlock Text="Browse, sign in, subscribe, download and manage DayZ Workshop content inside Server Manager."
+        <TextBlock Text="Browse and install mods directly into the selected server instance; every instance keeps its own files and loadout."
                    FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
       </StackPanel>
       <ctl:ScreenshotButton Grid.Column="1" VerticalAlignment="Top" />
@@ -50,7 +50,7 @@
           <StackPanel Grid.Column="0" Margin="0,0,14,0" VerticalAlignment="Center">
             <TextBlock Text="TARGET SERVER INSTANCE" FontSize="10" FontWeight="Bold"
                        Foreground="{DynamicResource KmOrangeBrush}" />
-            <TextBlock Text="Choose where this Workshop loadout will be managed"
+            <TextBlock Text="Choose where Install copies the Workshop mod files"
                        FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
           </StackPanel>
           <ComboBox x:Name="TargetServerCombo" Grid.Column="1" Width="240" Margin="0,0,14,0"
@@ -300,22 +300,17 @@
                          Tag="{Binding Id}" Click="OnUnsubscribe" Margin="0,0,8,8"
                          ToolTip="Subscribed — click to unsubscribe"
                          Visibility="{Binding DataContext.DetailSubscribed, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVis}}" />
-              <ui:Button Content="Install" Icon="{ui:SymbolIcon ArrowDownload24}" Tag="{Binding Id}" Click="OnDownload" Margin="0,0,8,8"
-                         ToolTip="Install locally via steamcmd (configure steamcmd to enable)"
-                         IsEnabled="{Binding DataContext.SteamCmdConfigured, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}}"
-                         Visibility="{Binding DataContext.DetailDownloaded, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource InverseBoolToVis}}" />
-              <ui:Button Content="Update" Icon="{ui:SymbolIcon ArrowSync24}" Tag="{Binding Id}" Click="OnDownload" Margin="0,0,8,8"
-                         ToolTip="Check and update the local Workshop files via steamcmd"
-                         IsEnabled="{Binding DataContext.SteamCmdConfigured, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}}"
-                         Visibility="{Binding DataContext.DetailDownloaded, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVis}}" />
-              <ui:Button Content="Install for target" Icon="{ui:SymbolIcon ArrowDownload24}" Tag="{Binding Id}"
+              <ui:Button Content="Install" Icon="{ui:SymbolIcon ArrowDownload24}" Tag="{Binding Id}"
                          Click="OnInstallForTarget" Margin="0,0,8,8" Appearance="Primary"
-                         ToolTip="Install this downloaded mod in the selected server's loadout and copy its public keys"
-                         IsEnabled="{Binding DataContext.DetailDownloaded, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}}"
+                         ToolTip="Download if needed, then copy the mod into the selected server instance and enable it"
                          Visibility="{Binding DataContext.DetailEnabledForTarget, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource InverseBoolToVis}}" />
-              <ui:Button Content="Uninstall from target" Icon="{ui:SymbolIcon Checkmark24}" Tag="{Binding Id}"
+              <ui:Button Content="Update" Icon="{ui:SymbolIcon ArrowSync24}" Tag="{Binding Id}"
+                         Click="OnInstallForTarget" Margin="0,0,8,8" Appearance="Primary"
+                         ToolTip="Selected for this target — download the latest files and replace only this instance's managed copy"
+                         Visibility="{Binding DataContext.DetailEnabledForTarget, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVis}}" />
+              <ui:Button Content="Uninstall" Icon="{ui:SymbolIcon Checkmark24}" Tag="{Binding Id}"
                          Click="OnUninstallFromTarget" Margin="0,0,8,8" Appearance="Danger"
-                         ToolTip="Selected for this target — click to remove it from the server loadout; shared files are kept"
+                         ToolTip="✓ Selected for this target — remove its instance-local folder and loadout entry; shared cache files are kept"
                          Visibility="{Binding DataContext.DetailEnabledForTarget, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVis}}" />
               <ui:DropDownButton Content="Open" Icon="{ui:SymbolIcon Open24}" ToolTip="Open…" Margin="0,0,0,8">
                 <ui:DropDownButton.Flyout>
@@ -378,9 +373,8 @@
                           </ContextMenu>
                         </ui:DropDownButton.Flyout>
                       </ui:DropDownButton>
-                      <ui:Button Content="Update" Icon="{ui:SymbolIcon ArrowSync24}" ToolTip="Update via steamcmd" Tag="{Binding Id}" Click="OnDownload" Margin="0,0,8,0"
-                                 IsEnabled="{Binding DataContext.SteamCmdConfigured, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}}" />
-                      <ui:Button Content="Install for target" ToolTip="Install for the selected server instance" Tag="{Binding Id}"
+                      <ui:Button Content="Install / update" Icon="{ui:SymbolIcon ArrowDownload24}"
+                                 ToolTip="Download and deploy into the selected server instance" Tag="{Binding Id}"
                                  Click="OnInstallForTarget" Margin="0,0,8,0" Appearance="Primary" />
                       <ui:Button Content="Unsubscribe" Icon="{ui:SymbolIcon LinkDismiss24}" Appearance="Danger" ToolTip="Unsubscribe" Tag="{Binding Id}" Click="OnUnsubscribe" />
                     </WrapPanel>
@@ -438,9 +432,8 @@
                             </ContextMenu>
                           </ui:DropDownButton.Flyout>
                         </ui:DropDownButton>
-                        <ui:Button Content="Update" Icon="{ui:SymbolIcon ArrowSync24}" ToolTip="Update (re-download via steamcmd)" Tag="{Binding Id}" Click="OnDownload" Margin="0,0,8,0"
-                                   IsEnabled="{Binding DataContext.SteamCmdConfigured, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}}" />
-                        <ui:Button Content="Install for target" ToolTip="Install for the selected server instance" Tag="{Binding Id}"
+                        <ui:Button Content="Install / update" Icon="{ui:SymbolIcon ArrowDownload24}"
+                                   ToolTip="Deploy this cache into the selected server instance" Tag="{Binding Id}"
                                    Click="OnInstallForTarget" Margin="0,0,8,0" Appearance="Primary" />
                         <ui:Button Content="Uninstall files" Icon="{ui:SymbolIcon Delete24}" Appearance="Danger" ToolTip="Uninstall the downloaded files" Tag="{Binding Id}" Click="OnDeleteDownloaded" />
                       </WrapPanel>

@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using Dzl.Core.Servers;
 using Dzl.Tray.ViewModels;
 using Microsoft.Win32;
+using System.Globalization;
 using TextBox = System.Windows.Controls.TextBox;
 
 namespace Dzl.Tray;
@@ -29,6 +30,9 @@ public partial class ServerEditorWindow : UserControl
         {
             LoadEditor();
             LoadParamsEditor();
+            LoadDayzServerConfig();
+            LoadWorkshopSettings();
+            LoadFileLocations();
             Tabs.SelectedIndex = tab;
             if (_vm.IsOfflineInstance)
             {
@@ -126,6 +130,189 @@ public partial class ServerEditorWindow : UserControl
             .Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
         _vm.ApplyParams(SelectedTarget, SelectedParamMode, lines);
     }
+
+    // --- graphical serverDZ.cfg editor ----------------------------------
+
+    private string ActiveServerConfigPath()
+    {
+        var configured = _vm.Cfg.ConfigName;
+        return Path.IsPathRooted(configured) ? Path.GetFullPath(configured) : Path.Combine(_vm.ActiveServerDir, configured);
+    }
+
+    private void LoadDayzServerConfig()
+    {
+        if (DzHostname is null) return;
+        try
+        {
+            var c = DayzServerConfig.Load(ActiveServerConfigPath());
+            DzHostname.Text = c.Hostname;
+            DzPassword.Password = c.Password;
+            DzAdminPassword.Password = c.PasswordAdmin;
+            DzMotd.Text = c.Motd;
+            DzMotdInterval.Text = c.MotdInterval.ToString();
+            DzMaxPlayers.Text = c.MaxPlayers.ToString();
+            DzWhitelist.IsChecked = c.EnableWhitelist;
+            DzVerifySignatures.Text = c.VerifySignatures.ToString();
+            DzForceSameBuild.IsChecked = c.ForceSameBuild;
+            DzDisableVon.IsChecked = c.DisableVoN;
+            DzVonQuality.Text = c.VonCodecQuality.ToString();
+            DzThirdPerson.IsChecked = c.DisableThirdPerson;
+            DzCrosshair.IsChecked = c.DisableCrosshair;
+            DzServerTime.Text = c.ServerTime;
+            DzTimeAcceleration.Text = c.ServerTimeAcceleration.ToString(CultureInfo.InvariantCulture);
+            DzNightAcceleration.Text = c.ServerNightTimeAcceleration.ToString(CultureInfo.InvariantCulture);
+            DzTimePersistent.IsChecked = c.ServerTimePersistent;
+            DzLoginConcurrent.Text = c.LoginQueueConcurrentPlayers.ToString();
+            DzLoginMax.Text = c.LoginQueueMaxPlayers.ToString();
+            DzInstanceId.Text = c.InstanceId.ToString();
+            DzStorageAutoFix.IsChecked = c.StorageAutoFix;
+            DzVisibility.Text = c.DefaultVisibility.ToString();
+            DzObjectDistance.Text = c.DefaultObjectViewDistance.ToString();
+            DzGameplayFile.IsChecked = c.EnableCfgGameplayFile;
+            DzLightingConfig.Text = c.LightingConfig.ToString();
+            DzPersonalLight.IsChecked = c.DisablePersonalLight;
+            DzPingWarning.Text = c.PingWarning.ToString();
+            DzPingCritical.Text = c.PingCritical.ToString();
+            DzMaxPing.Text = c.MaxPing.ToString();
+            DzFpsWarning.Text = c.ServerFpsWarning.ToString();
+            DzAllowFilePatching.IsChecked = c.AllowFilePatching;
+            DayzConfigStatus.Text = "";
+        }
+        catch (Exception ex) { DayzConfigStatus.Text = "✗ " + ex.Message; }
+    }
+
+    private static int Number(TextBox box, string label, int min, int max)
+    {
+        if (!int.TryParse(box.Text.Trim(), out var value) || value < min || value > max)
+            throw new ArgumentException($"{label} must be from {min} to {max}.");
+        return value;
+    }
+
+    private static double DecimalNumber(TextBox box, string label, double min, double max)
+    {
+        if (!double.TryParse(box.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            || value < min || value > max)
+            throw new ArgumentException($"{label} must be from {min} to {max}.");
+        return value;
+    }
+
+    private void OnSaveDayzServerConfig(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var edited = new DayzServerSettings
+            {
+                Hostname = DzHostname.Text.Trim(),
+                Password = DzPassword.Password,
+                PasswordAdmin = DzAdminPassword.Password,
+                Motd = DzMotd.Text,
+                MotdInterval = Number(DzMotdInterval, "MOTD interval", 0, 86400),
+                MaxPlayers = Number(DzMaxPlayers, "Player limit", 1, 200),
+                EnableWhitelist = DzWhitelist.IsChecked == true,
+                VerifySignatures = Number(DzVerifySignatures, "Signature verification", 0, 2),
+                ForceSameBuild = DzForceSameBuild.IsChecked == true,
+                DisableVoN = DzDisableVon.IsChecked == true,
+                VonCodecQuality = Number(DzVonQuality, "Voice quality", 0, 20),
+                DisableThirdPerson = DzThirdPerson.IsChecked == true,
+                DisableCrosshair = DzCrosshair.IsChecked == true,
+                ServerTime = DzServerTime.Text.Trim(),
+                ServerTimeAcceleration = DecimalNumber(DzTimeAcceleration, "Time acceleration", 0.1, 64),
+                ServerNightTimeAcceleration = DecimalNumber(DzNightAcceleration, "Night acceleration", 0.1, 64),
+                ServerTimePersistent = DzTimePersistent.IsChecked == true,
+                LoginQueueConcurrentPlayers = Number(DzLoginConcurrent, "Login queue workers", 1, 100),
+                LoginQueueMaxPlayers = Number(DzLoginMax, "Login queue limit", 0, 10000),
+                InstanceId = Number(DzInstanceId, "Instance ID", 1, int.MaxValue),
+                StorageAutoFix = DzStorageAutoFix.IsChecked == true,
+                DefaultVisibility = Number(DzVisibility, "Terrain render distance", 100, 10000),
+                DefaultObjectViewDistance = Number(DzObjectDistance, "Object render distance", 100, 10000),
+                EnableCfgGameplayFile = DzGameplayFile.IsChecked == true,
+                LightingConfig = Number(DzLightingConfig, "Lighting config", 0, 2),
+                DisablePersonalLight = DzPersonalLight.IsChecked == true,
+                PingWarning = Number(DzPingWarning, "Ping warning", 0, 10000),
+                PingCritical = Number(DzPingCritical, "Ping critical", 0, 10000),
+                MaxPing = Number(DzMaxPing, "Max ping", 0, 10000),
+                ServerFpsWarning = Number(DzFpsWarning, "FPS warning", 0, 1000),
+                AllowFilePatching = DzAllowFilePatching.IsChecked == true
+            };
+            if (edited.Hostname.Length == 0) throw new ArgumentException("Server name cannot be empty.");
+            if (edited.VerifySignatures is not (0 or 2)) throw new ArgumentException("Signature verification must be 0 or 2.");
+            DayzServerConfig.Save(ActiveServerConfigPath(), edited);
+            DayzConfigStatus.Text = "✓ Saved this instance's serverDZ.cfg (backup kept).";
+        }
+        catch (Exception ex) { DayzConfigStatus.Text = "✗ " + ex.Message; }
+    }
+
+    private void OnReloadDayzServerConfig(object sender, RoutedEventArgs e) => LoadDayzServerConfig();
+
+    private void OnOpenRawServerConfig(object sender, RoutedEventArgs e)
+    {
+        if (!ShellOpen.Editor(ActiveServerConfigPath())) DayzConfigStatus.Text = "✗ serverDZ.cfg could not be opened";
+    }
+
+    // --- per-instance Workshop policy -----------------------------------
+
+    private void LoadWorkshopSettings()
+    {
+        if (EditorAutoUpdateMods is null) return;
+        var c = _vm.Cfg;
+        WorkshopDeployPath.Text = Path.Combine(_vm.ActiveServerDir, "@Workshop_<item id>");
+        EditorAutoUpdateMods.IsChecked = c.AutoUpdateWorkshopMods;
+        EditorAutoCopyKeys.IsChecked = c.AutoCopyWorkshopKeys;
+        EditorUpdateInterval.Text = Math.Clamp(c.WorkshopUpdateIntervalMinutes, 5, 1440).ToString();
+        foreach (var item in EditorUpdatePolicy.Items.OfType<ComboBoxItem>())
+            if (string.Equals(item.Tag as string, c.WorkshopUpdatePolicy, StringComparison.OrdinalIgnoreCase))
+                EditorUpdatePolicy.SelectedItem = item;
+        WorkshopSettingsStatus.Text = "";
+    }
+
+    private void OnSaveWorkshopSettings(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var interval = Number(EditorUpdateInterval, "Workshop update interval", 5, 1440);
+            _vm.SaveActiveInstance(_vm.Cfg with
+            {
+                AutoUpdateWorkshopMods = EditorAutoUpdateMods.IsChecked == true,
+                AutoCopyWorkshopKeys = EditorAutoCopyKeys.IsChecked == true,
+                WorkshopUpdateIntervalMinutes = interval,
+                WorkshopUpdatePolicy = (EditorUpdatePolicy.SelectedItem as ComboBoxItem)?.Tag as string ?? "when-empty"
+            });
+            WorkshopSettingsStatus.Text = $"✓ Saved Workshop policy for {_vm.ActivePreset}.";
+        }
+        catch (Exception ex) { WorkshopSettingsStatus.Text = "✗ " + ex.Message; }
+    }
+
+    // --- instance file shortcuts ----------------------------------------
+
+    private string ResolveInstancePath(string configured, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(configured)) return fallback;
+        if (Path.IsPathRooted(configured)) return Path.GetFullPath(configured);
+        return Path.GetFullPath(Path.Combine(_vm.ActiveServerDir, configured.TrimStart('.', '/', '\\')));
+    }
+
+    private void LoadFileLocations()
+    {
+        if (FilesServerConfig is null) return;
+        FilesServerConfig.Text = ActiveServerConfigPath();
+        FilesMission.Text = ResolveInstancePath(_vm.Cfg.Mission, Path.Combine(_vm.ActiveServerDir, "mpmissions"));
+        FilesProfiles.Text = ResolveInstancePath(_vm.Cfg.ProfilesPath, Path.Combine(_vm.ActiveServerDir, "profiles"));
+        FilesWorkshop.Text = _vm.ActiveServerDir;
+        FilesKeys.Text = Path.Combine(_vm.ActiveServerDir, "keys");
+        FilesRunnable.Text = string.IsNullOrWhiteSpace(_vm.Cfg.ServerInstallPathOverride)
+            ? _vm.ActiveServerDir : _vm.Cfg.ServerInstallPathOverride;
+    }
+
+    private static void OpenOrCreate(string path)
+    {
+        try { if (!Directory.Exists(path)) Directory.CreateDirectory(path); } catch { /* ShellOpen reports failure */ }
+        ShellOpen.Folder(path);
+    }
+
+    private void OnOpenMissionFiles(object sender, RoutedEventArgs e) => OpenOrCreate(FilesMission.Text);
+    private void OnOpenProfilesFiles(object sender, RoutedEventArgs e) => OpenOrCreate(FilesProfiles.Text);
+    private void OnOpenKeysFiles(object sender, RoutedEventArgs e) => OpenOrCreate(FilesKeys.Text);
+    private void OnOpenRunnableFiles(object sender, RoutedEventArgs e) => OpenOrCreate(FilesRunnable.Text);
 
     private void OnBrowseInto(object sender, RoutedEventArgs e)
     {

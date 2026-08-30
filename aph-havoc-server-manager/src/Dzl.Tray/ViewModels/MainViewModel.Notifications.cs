@@ -56,14 +56,38 @@ public partial class MainViewModel
     public async Task<string> InstallWorkshopOnActiveServerAsync(string id)
     {
         var instance = string.IsNullOrWhiteSpace(ActivePreset) ? "default" : ActivePreset;
-        var source = new WorkshopService(_configPath).ResolveContentDir(id);
-        if (string.IsNullOrWhiteSpace(source))
+        if (!Profiles.List(_configPath).Contains(instance, StringComparer.OrdinalIgnoreCase))
         {
-            WorkshopStatus = $"✗ Workshop {id} is not downloaded yet — subscribe or download it first";
+            WorkshopStatus = $"✗ select a real server instance before installing Workshop {id}";
             return WorkshopStatus;
         }
 
         var cfg = Profiles.Load(instance, _configPath);
+        var service = new WorkshopService(_configPath);
+        var alreadyInstalled = WorkshopInstanceService.ConfiguredWorkshopIds(cfg).Contains(id, StringComparer.Ordinal);
+        var source = service.ResolveContentDir(id);
+
+        // Install is a complete target operation: obtain the content when necessary, and Update
+        // always refreshes SteamCMD before replacing the selected instance's managed copy.
+        if (source is null || alreadyInstalled)
+        {
+            WorkshopStatus = $"downloading {(alreadyInstalled ? "update" : "Workshop files")} for {instance}… complete any Steam Guard prompt in the console";
+            var download = await service.DownloadAndWaitAsync(id);
+            if (!download.Ok)
+            {
+                WorkshopStatus = "✗ " + download.Message;
+                RefreshWorkshopDetailState();
+                return WorkshopStatus;
+            }
+            source = service.ResolveContentDir(id);
+        }
+        if (source is null)
+        {
+            WorkshopStatus = $"✗ Workshop {id} downloaded but its content folder was not found";
+            return WorkshopStatus;
+        }
+
+        WorkshopStatus = $"installing Workshop {id} into {WorkshopInstanceService.DeploymentDir(_configPath, instance, id)}…";
         var result = await Task.Run(() => WorkshopInstanceService.EnableForInstance(
             _configPath, instance, id, source, cfg.AutoCopyWorkshopKeys));
         WorkshopStatus = (result.Ok ? "✓ " : "✗ ") + result.Message;
@@ -71,8 +95,9 @@ public partial class MainViewModel
         {
             Reload();
             RefreshWorkshopDetailState();
-            await NotifyDiscordAsync(DiscordNotificationCategory.AdminActivity, "Workshop mod enabled",
-                $"Workshop item `{id}` was enabled for **{instance}**.", instance);
+            await NotifyDiscordAsync(DiscordNotificationCategory.AdminActivity,
+                alreadyInstalled ? "Workshop mod updated" : "Workshop mod installed",
+                $"Workshop item `{id}` was {(alreadyInstalled ? "updated" : "installed")} inside **{instance}** at `{WorkshopInstanceService.DeploymentDir(_configPath, instance, id)}`.", instance);
         }
         return WorkshopStatus;
     }
@@ -88,7 +113,7 @@ public partial class MainViewModel
             Reload();
             RefreshWorkshopDetailState();
             await NotifyDiscordAsync(DiscordNotificationCategory.AdminActivity, "Workshop mod uninstalled",
-                $"Workshop item `{id}` was removed from the **{instance}** loadout. Shared downloaded files were kept.",
+                $"Workshop item `{id}` and its instance-local files were removed from **{instance}**. Shared downloaded files were kept.",
                 instance);
         }
         return WorkshopStatus;

@@ -87,7 +87,7 @@
           <TextBlock Text="{Binding ActivePreset, StringFormat='Instance: {0}'}"
                      FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
         </StackPanel>
-        <TextBlock Grid.Column="1" Text="SETTINGS · MODS · PARAMS" FontSize="11" FontWeight="Bold"
+        <TextBlock Grid.Column="1" Text="INSTANCE · SERVER CONFIG · WORKSHOP · FILES · MODS · LAUNCH" FontSize="11" FontWeight="Bold"
                    Foreground="{DynamicResource KmGreenBrush}" VerticalAlignment="Center" />
       </Grid>
     </Border>
@@ -95,7 +95,7 @@
     <TabControl x:Name="Tabs" Grid.Row="1" Margin="12,4,12,0" Background="Transparent" BorderThickness="0">
 
       <!-- ===== Settings ===== -->
-      <TabItem Header="Settings">
+      <TabItem Header="Instance">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="4,12,4,4">
 
@@ -336,7 +336,7 @@
       </TabItem>
 
       <!-- ===== Params ===== -->
-      <TabItem Header="Params">
+      <TabItem Header="Launch">
         <StackPanel Margin="4,12,4,4">
           <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
             <TextBlock Text="Target" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,8,0" />
@@ -359,6 +359,185 @@
             <ui:Button Content="Reset to defaults" Icon="{ui:SymbolIcon ArrowReset24}" Margin="8,0,0,0" Click="OnResetParams" />
           </StackPanel>
         </StackPanel>
+      </TabItem>
+
+      <!-- ===== Graphical serverDZ.cfg settings ===== -->
+      <TabItem Header="Server settings">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="4,12,4,20">
+            <TextBlock Text="Server configuration" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock Text="Edits this instance's own serverDZ.cfg. Unknown settings and comments are preserved; a .km-backup is written before every save."
+                       TextWrapping="Wrap" Margin="0,3,0,14" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                <ui:Card Padding="14" Margin="0,0,0,12">
+                  <StackPanel>
+                    <TextBlock Text="Identity &amp; access" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10" />
+                    <TextBlock Text="Server name" Style="{StaticResource FieldLabel}" />
+                    <ui:TextBox x:Name="DzHostname" Margin="0,0,0,10" />
+                    <TextBlock Text="Server password" Style="{StaticResource FieldLabel}" />
+                    <PasswordBox x:Name="DzPassword" Padding="8" Margin="0,0,0,10" />
+                    <TextBlock Text="Admin password" Style="{StaticResource FieldLabel}" />
+                    <PasswordBox x:Name="DzAdminPassword" Padding="8" Margin="0,0,0,10" />
+                    <Grid>
+                      <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                      <StackPanel Grid.Column="0"><TextBlock Text="Player limit" Style="{StaticResource FieldLabel}" /><ui:TextBox x:Name="DzMaxPlayers" /></StackPanel>
+                      <StackPanel Grid.Column="2"><TextBlock Text="Instance ID" Style="{StaticResource FieldLabel}" /><ui:TextBox x:Name="DzInstanceId" /></StackPanel>
+                    </Grid>
+                  </StackPanel>
+                </ui:Card>
+
+                <ui:Card Padding="14" Margin="0,0,0,12">
+                  <StackPanel>
+                    <TextBlock Text="Message &amp; client rules" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10" />
+                    <TextBlock Text="Message of the day (one line per message)" Style="{StaticResource FieldLabel}" />
+                    <TextBox x:Name="DzMotd" Height="88" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Padding="8" Margin="0,0,0,10" />
+                    <TextBlock Text="MOTD interval (seconds)" Style="{StaticResource FieldLabel}" />
+                    <ui:TextBox x:Name="DzMotdInterval" Margin="0,0,0,10" />
+                    <WrapPanel>
+                      <CheckBox x:Name="DzWhitelist" Content="Enable whitelist" Margin="0,0,16,8" />
+                      <CheckBox x:Name="DzForceSameBuild" Content="Force same build" Margin="0,0,16,8" />
+                      <CheckBox x:Name="DzAllowFilePatching" Content="Allow server file patching" Margin="0,0,16,8" />
+                      <CheckBox x:Name="DzThirdPerson" Content="Disable third person" Margin="0,0,16,8" />
+                      <CheckBox x:Name="DzCrosshair" Content="Disable crosshair" Margin="0,0,16,8" />
+                    </WrapPanel>
+                    <TextBlock Text="Signature verification (0 or 2)" Style="{StaticResource FieldLabel}" />
+                    <ui:TextBox x:Name="DzVerifySignatures" />
+                  </StackPanel>
+                </ui:Card>
+              </StackPanel>
+
+              <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                <ui:Card Padding="14" Margin="0,0,0,12">
+                  <StackPanel>
+                    <TextBlock Text="Time &amp; world" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10" />
+                    <TextBlock Text="Initial server time" Style="{StaticResource FieldLabel}" />
+                    <ui:TextBox x:Name="DzServerTime" Margin="0,0,0,10" />
+                    <Grid Margin="0,0,0,10">
+                      <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                      <StackPanel Grid.Column="0"><TextBlock Text="Time acceleration" Style="{StaticResource FieldLabel}" /><ui:TextBox x:Name="DzTimeAcceleration" /></StackPanel>
+                      <StackPanel Grid.Column="2"><TextBlock Text="Night acceleration" Style="{StaticResource FieldLabel}" /><ui:TextBox x:Name="DzNightAcceleration" /></StackPanel>
+                    </Grid>
+                    <Grid Margin="0,0,0,10">
+                      <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                      <StackPanel Grid.Column="0"><TextBlock Text="Terrain render distance" Style="{StaticResource FieldLabel}" /><ui:TextBox x:Name="DzVisibility" /></StackPanel>
+                      <StackPanel Grid.Column="2"><TextBlock Text="Object render distance" Style="{StaticResource FieldLabel}" /><ui:TextBox x:Name="DzObjectDistance" /></StackPanel>
+                    </Grid>
+                    <WrapPanel>
+                      <CheckBox x:Name="DzTimePersistent" Content="Persistent server time" Margin="0,0,16,8" />
+                      <CheckBox x:Name="DzGameplayFile" Content="Enable gameplay settings file" Margin="0,0,16,8" />
+                      <CheckBox x:Name="DzStorageAutoFix" Content="Storage auto fix" Margin="0,0,16,8" />
+                      <CheckBox x:Name="DzPersonalLight" Content="Disable personal light" Margin="0,0,16,8" />
+                    </WrapPanel>
+                    <TextBlock Text="Lighting config (0–2)" Style="{StaticResource FieldLabel}" />
+                    <ui:TextBox x:Name="DzLightingConfig" />
+                  </StackPanel>
+                </ui:Card>
+
+                <ui:Card Padding="14" Margin="0,0,0,12">
+                  <StackPanel>
+                    <TextBlock Text="Network &amp; performance" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10" />
+                    <Grid Margin="0,0,0,10">
+                      <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                      <StackPanel Grid.Column="0"><TextBlock Text="Login queue workers" Style="{StaticResource FieldLabel}" /><ui:TextBox x:Name="DzLoginConcurrent" /></StackPanel>
+                      <StackPanel Grid.Column="2"><TextBlock Text="Login queue limit" Style="{StaticResource FieldLabel}" /><ui:TextBox x:Name="DzLoginMax" /></StackPanel>
+                    </Grid>
+                    <Grid Margin="0,0,0,10">
+                      <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                      <StackPanel Grid.Column="0"><TextBlock Text="Voice quality (0–20)" Style="{StaticResource FieldLabel}" /><ui:TextBox x:Name="DzVonQuality" /></StackPanel>
+                      <StackPanel Grid.Column="2"><TextBlock Text="FPS warning" Style="{StaticResource FieldLabel}" /><ui:TextBox x:Name="DzFpsWarning" /></StackPanel>
+                    </Grid>
+                    <Grid Margin="0,0,0,10">
+                      <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                      <StackPanel Grid.Column="0"><TextBlock Text="Ping warn" Style="{StaticResource FieldLabel}" /><ui:TextBox x:Name="DzPingWarning" /></StackPanel>
+                      <StackPanel Grid.Column="2"><TextBlock Text="Ping critical" Style="{StaticResource FieldLabel}" /><ui:TextBox x:Name="DzPingCritical" /></StackPanel>
+                      <StackPanel Grid.Column="4"><TextBlock Text="Max ping" Style="{StaticResource FieldLabel}" /><ui:TextBox x:Name="DzMaxPing" /></StackPanel>
+                    </Grid>
+                    <CheckBox x:Name="DzDisableVon" Content="Disable voice over network" />
+                  </StackPanel>
+                </ui:Card>
+              </StackPanel>
+            </Grid>
+
+            <StackPanel Orientation="Horizontal">
+              <ui:Button Content="Save server settings" Appearance="Primary" Icon="{ui:SymbolIcon Save24}" Click="OnSaveDayzServerConfig" />
+              <ui:Button Content="Reload" Icon="{ui:SymbolIcon ArrowSync24}" Margin="8,0,0,0" Click="OnReloadDayzServerConfig" />
+              <ui:Button Content="Open raw config" Icon="{ui:SymbolIcon Code24}" Margin="8,0,0,0" Click="OnOpenRawServerConfig" />
+              <TextBlock x:Name="DayzConfigStatus" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"
+                         Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- ===== Per-instance Workshop settings ===== -->
+      <TabItem Header="Workshop">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="4,12,4,20">
+            <ui:Card Padding="16" Margin="0,0,0,12">
+              <StackPanel>
+                <TextBlock Text="Instance-local Workshop deployment" FontSize="17" FontWeight="SemiBold" />
+                <TextBlock Text="Workshop Install copies each mod into this selected server. Other instances keep separate copies and loadouts."
+                           TextWrapping="Wrap" Margin="0,4,0,10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="Managed mod destination" Style="{StaticResource FieldLabel}" />
+                <Border CornerRadius="4" Padding="8,6" Background="{DynamicResource ControlFillColorDefaultBrush}">
+                  <TextBlock x:Name="WorkshopDeployPath" FontFamily="Cascadia Mono, Consolas" TextWrapping="Wrap" />
+                </Border>
+                <ui:Button Content="Open instance folder" Icon="{ui:SymbolIcon FolderOpen24}" HorizontalAlignment="Left"
+                           Margin="0,10,0,0" Click="OnOpenInstanceFolder" />
+              </StackPanel>
+            </ui:Card>
+            <ui:Card Padding="16" Margin="0,0,0,12">
+              <StackPanel>
+                <TextBlock Text="Updates &amp; keys" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,10" />
+                <CheckBox x:Name="EditorAutoUpdateMods" Content="Automatically deploy updates when an installed Workshop mod changes" Margin="0,0,0,8" />
+                <CheckBox x:Name="EditorAutoCopyKeys" Content="Copy public .bikey files into this instance's keys folder" Margin="0,0,0,10" />
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="220" /><ColumnDefinition Width="20" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="100" /></Grid.ColumnDefinitions>
+                  <TextBlock Grid.Column="0" Text="Deployment policy" VerticalAlignment="Center" Margin="0,0,8,0" />
+                  <ComboBox x:Name="EditorUpdatePolicy" Grid.Column="1" SelectedIndex="0">
+                    <ComboBoxItem Content="Wait until server is empty" Tag="when-empty" />
+                    <ComboBoxItem Content="15-minute RCon warning" Tag="warn-15" />
+                  </ComboBox>
+                  <TextBlock Grid.Column="3" Text="Check every (minutes)" VerticalAlignment="Center" Margin="0,0,8,0" />
+                  <ui:TextBox x:Name="EditorUpdateInterval" Grid.Column="4" />
+                </Grid>
+              </StackPanel>
+            </ui:Card>
+            <StackPanel Orientation="Horizontal">
+              <ui:Button Content="Save Workshop settings" Appearance="Primary" Icon="{ui:SymbolIcon Save24}" Click="OnSaveWorkshopSettings" />
+              <TextBlock x:Name="WorkshopSettingsStatus" VerticalAlignment="Center" Margin="12,0,0,0"
+                         Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- ===== Per-instance files ===== -->
+      <TabItem Header="Files &amp; logs">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="4,12,4,20">
+            <TextBlock Text="This instance's files" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock Text="Every shortcut below is resolved from the selected instance; it never opens another server's configuration."
+                       Margin="0,3,0,14" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            <ItemsControl>
+              <ItemsControl.Items>
+                <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="Server configuration" VerticalAlignment="Center" FontWeight="SemiBold" /><TextBlock x:Name="FilesServerConfig" Grid.Column="1" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas" TextTrimming="CharacterEllipsis" /><ui:Button Grid.Column="2" Content="Edit" Icon="{ui:SymbolIcon Code24}" Click="OnOpenRawServerConfig" /></Grid>
+                <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="Mission / economy" VerticalAlignment="Center" FontWeight="SemiBold" /><TextBlock x:Name="FilesMission" Grid.Column="1" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas" TextTrimming="CharacterEllipsis" /><ui:Button Grid.Column="2" Content="Open" Icon="{ui:SymbolIcon FolderOpen24}" Click="OnOpenMissionFiles" /></Grid>
+                <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="Profiles / logs" VerticalAlignment="Center" FontWeight="SemiBold" /><TextBlock x:Name="FilesProfiles" Grid.Column="1" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas" TextTrimming="CharacterEllipsis" /><ui:Button Grid.Column="2" Content="Open" Icon="{ui:SymbolIcon FolderOpen24}" Click="OnOpenProfilesFiles" /></Grid>
+                <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="Workshop mods" VerticalAlignment="Center" FontWeight="SemiBold" /><TextBlock x:Name="FilesWorkshop" Grid.Column="1" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas" TextTrimming="CharacterEllipsis" /><ui:Button Grid.Column="2" Content="Open" Icon="{ui:SymbolIcon FolderOpen24}" Click="OnOpenInstanceFolder" /></Grid>
+                <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="Public keys" VerticalAlignment="Center" FontWeight="SemiBold" /><TextBlock x:Name="FilesKeys" Grid.Column="1" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas" TextTrimming="CharacterEllipsis" /><ui:Button Grid.Column="2" Content="Open" Icon="{ui:SymbolIcon FolderOpen24}" Click="OnOpenKeysFiles" /></Grid>
+                <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="Runnable server" VerticalAlignment="Center" FontWeight="SemiBold" /><TextBlock x:Name="FilesRunnable" Grid.Column="1" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas" TextTrimming="CharacterEllipsis" /><ui:Button Grid.Column="2" Content="Open" Icon="{ui:SymbolIcon FolderOpen24}" Click="OnOpenRunnableFiles" /></Grid>
+              </ItemsControl.Items>
+            </ItemsControl>
+            <Border Margin="0,8,0,0" Padding="12" CornerRadius="6" Background="{DynamicResource ControlFillColorDefaultBrush}">
+              <TextBlock Text="Use Server settings for the guided editor, Mods for load order and client/server side, Workshop for update policy, and Launch for raw startup flags."
+                         TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
       </TabItem>
     </TabControl>
 

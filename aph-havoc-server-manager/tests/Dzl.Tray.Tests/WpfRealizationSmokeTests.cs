@@ -6,6 +6,7 @@ using Dzl.Core.Config;
 using Dzl.Core.Servers;
 using Dzl.Tray;
 using Dzl.Tray.Views;
+using Dzl.Tray.ViewModels;
 using FluentAssertions;
 using Wpf.Ui.Appearance;
 
@@ -62,6 +63,16 @@ public class WpfRealizationSmokeTests
             window.Measure(new Size(1240, 800));
             window.Arrange(new Rect(0, 0, 1240, 800));
             window.UpdateLayout();
+            // The per-instance manager has a VM/action constructor, so reflection cannot create it.
+            // Navigate through the real host to realize its graphical server config, Workshop,
+            // files, mods and launch tabs under the same resources as production.
+            using (var editorVm = new MainViewModel(configPath))
+            {
+                var editor = new ServerEditorWindow(editorVm, 0, () => { });
+                editor.Measure(new Size(1500, 900));
+                editor.Arrange(new Rect(0, 0, 1500, 900));
+                editor.UpdateLayout();
+            }
             window.Close();
         }
         finally
