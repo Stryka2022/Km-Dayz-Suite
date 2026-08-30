@@ -70,8 +70,26 @@ public partial class MainViewModel
         if (result.Ok)
         {
             Reload();
+            RefreshWorkshopDetailState();
             await NotifyDiscordAsync(DiscordNotificationCategory.AdminActivity, "Workshop mod enabled",
                 $"Workshop item `{id}` was enabled for **{instance}**.", instance);
+        }
+        return WorkshopStatus;
+    }
+
+    public async Task<string> UninstallWorkshopFromActiveServerAsync(string id)
+    {
+        var instance = string.IsNullOrWhiteSpace(ActivePreset) ? "default" : ActivePreset;
+        var result = await Task.Run(() => WorkshopInstanceService.DisableForInstance(
+            _configPath, instance, id));
+        WorkshopStatus = (result.Ok ? "✓ " : "✗ ") + result.Message;
+        if (result.Ok)
+        {
+            Reload();
+            RefreshWorkshopDetailState();
+            await NotifyDiscordAsync(DiscordNotificationCategory.AdminActivity, "Workshop mod uninstalled",
+                $"Workshop item `{id}` was removed from the **{instance}** loadout. Shared downloaded files were kept.",
+                instance);
         }
         return WorkshopStatus;
     }

@@ -4,6 +4,23 @@ All notable changes to dzl are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the app is versioned by
 git tag (`v*`), which the release workflow turns into a Velopack release.
 
+## [0.1.35-km.14] - 2026-08-30
+
+### Added
+- Workshop results now show a green tick on the selected item, and an enabled target mod exposes a
+  checked **Uninstall from target** action so its active-server state is immediately visible.
+- The Workshop browser now has draggable filter/details splitters plus an **Expand details** control
+  that gives the selected mod the full content width and restores the lists with one click.
+
+### Changed
+- Workshop actions now use explicit state-aware labels: **Install** before a local download,
+  **Update** when files are present, and **Uninstall from target** when the mod is in the selected
+  server's loadout. Removing it from one target keeps the shared download for other servers.
+
+### Fixed
+- Detail and collection action buttons now wrap instead of being clipped by the former fixed
+  410-pixel details column.
+
 ## [0.1.35-km.13] - 2026-08-29
 
 ### Added

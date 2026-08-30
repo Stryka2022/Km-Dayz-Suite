@@ -75,7 +75,10 @@ have independent process/PID tracking and Start/Stop controls so multiple server
 New online instances default to a complete runnable folder; existing split layouts can copy their
 verified runtime into the instance folder without replacing serverDZ.cfg, missions, profiles or
 persistence. Game/query port pairs and DayZ instance IDs are unique per managed server. The companion
-version for these changes is 0.1.35-km.13.
+Workshop now presents state-aware Install, Update and per-target Uninstall actions, shows checked
+selection/target state, wraps action controls, and provides draggable panes plus a full-width details
+view. Per-target uninstall removes only that instance's loadout entry and retains shared downloads.
+The companion version for these changes is 0.1.35-km.14.
 Original upstream authorship, copyright and GPL licensing are retained in this legal
 notice and the corresponding source history. Public distribution and modifications
 are presented under the APH Havoc name without claiming ownership of upstream work.

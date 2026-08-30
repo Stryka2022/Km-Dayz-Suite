@@ -16,6 +16,10 @@ public partial class WorkshopWindow : UserControl
     private MainViewModel Vm => (MainViewModel)DataContext;
     private bool _loaded;
     private bool _syncingTargetServer;
+    private bool _detailsExpanded;
+    private GridLength _savedFilterWidth;
+    private GridLength _savedResultsWidth;
+    private GridLength _savedDetailsWidth;
 
     public WorkshopWindow()
     {
@@ -86,6 +90,7 @@ public partial class WorkshopWindow : UserControl
         {
             var status = Vm.UseServer(name);
             UpdateTargetServerStatus(status);
+            Vm.RefreshWorkshopDetailState();
         }
         finally { _syncingTargetServer = false; }
     }
@@ -130,6 +135,50 @@ public partial class WorkshopWindow : UserControl
     private async void OnInstallForTarget(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: string id }) await Vm.InstallWorkshopOnActiveServerAsync(id);
+    }
+
+    private async void OnUninstallFromTarget(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string id }) return;
+        var title = Vm.WorkshopDetail?.Id == id ? Vm.WorkshopDetail.Title : id;
+        var target = string.IsNullOrWhiteSpace(Vm.ActivePreset) ? "default" : Vm.ActivePreset;
+        var result = System.Windows.MessageBox.Show(
+            $"Uninstall \"{title}\" from the '{target}' server loadout?\n\nThe shared Workshop files stay on disk for other servers.",
+            "Uninstall Workshop mod", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question);
+        if (result == System.Windows.MessageBoxResult.Yes)
+            await Vm.UninstallWorkshopFromActiveServerAsync(id);
+    }
+
+    private void OnToggleDetailExpansion(object sender, RoutedEventArgs e)
+    {
+        if (!_detailsExpanded)
+        {
+            _savedFilterWidth = FilterColumn.Width;
+            _savedResultsWidth = ResultsColumn.Width;
+            _savedDetailsWidth = DetailsColumn.Width;
+            FilterColumn.MinWidth = 0;
+            ResultsColumn.MinWidth = 0;
+            FilterColumn.Width = new GridLength(0);
+            FilterSplitterColumn.Width = new GridLength(0);
+            ResultsColumn.Width = new GridLength(0);
+            DetailsSplitterColumn.Width = new GridLength(0);
+            DetailsColumn.MinWidth = 0;
+            DetailsColumn.Width = new GridLength(1, GridUnitType.Star);
+            DetailExpandButton.Content = "Restore lists";
+            _detailsExpanded = true;
+            return;
+        }
+
+        FilterColumn.MinWidth = 120;
+        ResultsColumn.MinWidth = 260;
+        DetailsColumn.MinWidth = 340;
+        FilterColumn.Width = _savedFilterWidth.Value > 0 ? _savedFilterWidth : new GridLength(170);
+        FilterSplitterColumn.Width = new GridLength(7);
+        ResultsColumn.Width = _savedResultsWidth.Value > 0 ? _savedResultsWidth : new GridLength(1, GridUnitType.Star);
+        DetailsSplitterColumn.Width = new GridLength(7);
+        DetailsColumn.Width = _savedDetailsWidth.Value > 0 ? _savedDetailsWidth : new GridLength(440);
+        DetailExpandButton.Content = "Expand details";
+        _detailsExpanded = false;
     }
 
     private async void OnCheckAllUpdates(object sender, RoutedEventArgs e)

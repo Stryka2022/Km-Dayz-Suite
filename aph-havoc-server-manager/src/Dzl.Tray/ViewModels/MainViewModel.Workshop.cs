@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Dzl.Core.App;
+using Dzl.Core.Config;
 using Dzl.Core.Workshop;
 
 namespace Dzl.Tray.ViewModels;
@@ -33,6 +34,8 @@ public partial class MainViewModel
     [ObservableProperty] private WorkshopItem? _selectedWorkshopItem;
     [ObservableProperty] private WorkshopItem? _workshopDetail;
     [ObservableProperty] private bool _detailSubscribed;   // is the item shown in the details pane already subscribed?
+    [ObservableProperty] private bool _detailDownloaded;
+    [ObservableProperty] private bool _detailEnabledForTarget;
     private int _workshopPage = 1;
     private bool _wsReady;
     // Browse generation: every new browse bumps it; stale in-flight results are dropped, so two
@@ -66,11 +69,35 @@ public partial class MainViewModel
 
     partial void OnSelectedWorkshopItemChanged(WorkshopItem? value) => _ = LoadDetailAsync(value);
 
-    partial void OnWorkshopDetailChanged(WorkshopItem? value) => RecomputeDetailSubscribed();
+    partial void OnWorkshopDetailChanged(WorkshopItem? value) => RefreshWorkshopDetailState();
 
     /// <summary>Refresh <see cref="DetailSubscribed"/> from the current detail item + subscribed list.</summary>
     private void RecomputeDetailSubscribed()
         => DetailSubscribed = WorkshopDetail is { } d && WorkshopSubscribed.Any(s => s.Id == d.Id);
+
+    /// <summary>Refresh the selected item's subscription, local-download and active-instance state.
+    /// The Workshop buttons use these flags to present Install, Update or Uninstall explicitly.</summary>
+    public void RefreshWorkshopDetailState()
+    {
+        RecomputeDetailSubscribed();
+        if (WorkshopDetail is not { } detail)
+        {
+            DetailDownloaded = false;
+            DetailEnabledForTarget = false;
+            return;
+        }
+
+        var service = new WorkshopService(_configPath);
+        DetailDownloaded = service.ResolveContentDir(detail.Id) is not null;
+        try
+        {
+            var instance = string.IsNullOrWhiteSpace(ActivePreset) ? "default" : ActivePreset;
+            var cfg = Profiles.Load(instance, _configPath);
+            DetailEnabledForTarget = WorkshopInstanceService.ConfiguredWorkshopIds(cfg)
+                .Contains(detail.Id, StringComparer.Ordinal);
+        }
+        catch { DetailEnabledForTarget = false; }
+    }
 
     /// <summary>Reload the subscribed-items list (Steam client content folder).</summary>
     public void RefreshSubscribed()
@@ -80,7 +107,7 @@ public partial class MainViewModel
         foreach (var s in svc.Subscribed()) WorkshopSubscribed.Add(s);
         WorkshopDownloaded.Clear();
         foreach (var s in svc.DownloadedItems()) WorkshopDownloaded.Add(s);
-        RecomputeDetailSubscribed();
+        RefreshWorkshopDetailState();
     }
 
     /// <summary>Browse with the current sort + time frame + selected category tags + search (page 1).</summary>
@@ -233,6 +260,8 @@ public partial class MainViewModel
         WorkshopStatus = "downloading…";
         var r = await Task.Run(() => new WorkshopService(cp).Download(id));
         WorkshopStatus = (r.Ok ? "✓ " : "✗ ") + r.Message;
+        if (r.Ok) RefreshSubscribed();
+        else RefreshWorkshopDetailState();
         return WorkshopStatus;
     }
 

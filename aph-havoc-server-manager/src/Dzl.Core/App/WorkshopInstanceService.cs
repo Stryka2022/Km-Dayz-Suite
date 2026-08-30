@@ -51,6 +51,31 @@ public static class WorkshopInstanceService
         catch (Exception ex) { return new(false, ex.Message); }
     }
 
+    /// <summary>Remove a Workshop item from one server instance's active mod loadout. The shared
+    /// Workshop download is deliberately kept on disk so another instance can continue using it and
+    /// the item can be enabled again without downloading it.</summary>
+    public static OpResult DisableForInstance(string configPath, string instanceName, string workshopId)
+    {
+        if (!Profiles.List(configPath).Contains(instanceName, StringComparer.OrdinalIgnoreCase))
+            return new(false, $"server instance '{instanceName}' was not found");
+        if (string.IsNullOrWhiteSpace(workshopId) || !workshopId.All(char.IsDigit))
+            return new(false, "a numeric Workshop id is required");
+
+        try
+        {
+            var cfg = Profiles.Load(instanceName, configPath);
+            var mods = cfg.Mods
+                .Where(m => !string.Equals(TryWorkshopId(m.Path), workshopId, StringComparison.Ordinal))
+                .ToList();
+            if (mods.Count == cfg.Mods.Count)
+                return new(true, $"Workshop {workshopId} is already uninstalled from '{instanceName}'");
+
+            Profiles.Save(cfg with { Mods = mods }, instanceName, configPath);
+            return new(true, $"uninstalled Workshop {workshopId} from '{instanceName}' · downloaded files kept");
+        }
+        catch (Exception ex) { return new(false, ex.Message); }
+    }
+
     public static int CopyPublicKeys(string modDir, string instanceDir)
     {
         if (!Directory.Exists(modDir)) return 0;

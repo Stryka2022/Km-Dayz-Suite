@@ -4,7 +4,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Dzl.Tray"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-        MinWidth="760" MinHeight="500"
+        MinWidth="760" MinHeight="560"
         Background="{DynamicResource KmCanvasBrush}"
         SnapsToDevicePixels="True" UseLayoutRounding="True">
 
@@ -152,11 +152,15 @@
     <!-- Filters | results | details -->
     <Grid Grid.Row="2">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="170" /><ColumnDefinition Width="*" /><ColumnDefinition Width="410" />
+        <ColumnDefinition x:Name="FilterColumn" Width="170" MinWidth="120" />
+        <ColumnDefinition x:Name="FilterSplitterColumn" Width="7" />
+        <ColumnDefinition x:Name="ResultsColumn" Width="*" MinWidth="260" />
+        <ColumnDefinition x:Name="DetailsSplitterColumn" Width="7" />
+        <ColumnDefinition x:Name="DetailsColumn" Width="440" MinWidth="340" />
       </Grid.ColumnDefinitions>
 
       <!-- Filter rail -->
-      <Border Grid.Column="0" CornerRadius="6" BorderThickness="1" Padding="10" Margin="0,0,12,0"
+      <Border Grid.Column="0" CornerRadius="6" BorderThickness="1" Padding="10"
               BorderBrush="{DynamicResource ControlElevationBorderBrush}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel>
@@ -172,8 +176,12 @@
         </ScrollViewer>
       </Border>
 
+      <GridSplitter Grid.Column="1" Width="7" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                    ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ShowsPreview="True"
+                    Background="Transparent" Cursor="SizeWE" ToolTip="Drag to resize filters and results" />
+
       <!-- Results -->
-      <Border Grid.Column="1" CornerRadius="6" BorderThickness="1" Margin="0,0,12,0"
+      <Border Grid.Column="2" CornerRadius="6" BorderThickness="1"
               BorderBrush="{DynamicResource ControlElevationBorderBrush}">
         <ListBox x:Name="ResultsList" ItemsSource="{Binding WorkshopResults}"
                  SelectedItem="{Binding SelectedWorkshopItem}" Background="Transparent" BorderThickness="0"
@@ -210,7 +218,9 @@
           <ListBox.ItemTemplate>
             <DataTemplate>
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
                 <Border Grid.Column="0" Width="88" Height="72" CornerRadius="4" Margin="0,0,12,0"
                         Background="{DynamicResource ControlFillColorDefaultBrush}">
                   <Image Source="{Binding PreviewUrl}" Stretch="UniformToFill" />
@@ -219,18 +229,44 @@
                   <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
                   <TextBlock Text="{Binding Id}" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                 </StackPanel>
+                <ui:SymbolIcon Grid.Column="2" Symbol="Checkmark24" Margin="10,0,4,0"
+                               Foreground="{DynamicResource KmGreenBrush}" VerticalAlignment="Center"
+                               ToolTip="Selected">
+                  <ui:SymbolIcon.Style>
+                    <Style TargetType="ui:SymbolIcon">
+                      <Setter Property="Visibility" Value="Collapsed" />
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                          <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </ui:SymbolIcon.Style>
+                </ui:SymbolIcon>
               </Grid>
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
       </Border>
 
+      <GridSplitter Grid.Column="3" Width="7" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                    ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ShowsPreview="True"
+                    Background="Transparent" Cursor="SizeWE" ToolTip="Drag to make the Workshop details area bigger" />
+
       <!-- Details (enriched) -->
-      <Border Grid.Column="2" CornerRadius="6" BorderThickness="1" Padding="12"
+      <Border Grid.Column="4" CornerRadius="6" BorderThickness="1" Padding="12"
               BorderBrush="{DynamicResource ControlElevationBorderBrush}"
               DataContext="{Binding WorkshopDetail}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel>
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Text="MOD DETAILS" FontSize="11" FontWeight="SemiBold"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
+              <ui:Button x:Name="DetailExpandButton" Grid.Column="1" Content="Expand details"
+                         Appearance="Secondary" Padding="10,4" Click="OnToggleDetailExpansion"
+                         ToolTip="Use the full Workshop browser width; click again to restore the lists" />
+            </Grid>
             <Border Height="210" MinWidth="300" CornerRadius="6" Margin="0,0,0,10"
                     Background="{DynamicResource ControlFillColorDefaultBrush}">
               <Image Source="{Binding PreviewUrl}" Stretch="Uniform" />
@@ -256,20 +292,32 @@
             <TextBlock Text="{Binding Tags}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+            <WrapPanel Margin="0,0,0,10">
               <ui:Button Content="Subscribe" Icon="{ui:SymbolIcon Star24}" Appearance="Primary"
-                         Tag="{Binding Id}" Click="OnSubscribe" Margin="0,0,8,0"
+                         Tag="{Binding Id}" Click="OnSubscribe" Margin="0,0,8,8"
                          Visibility="{Binding DataContext.DetailSubscribed, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource InverseBoolToVis}}" />
               <ui:Button Content="Unsubscribe" Icon="{ui:SymbolIcon Checkmark24}" Appearance="Secondary"
-                         Tag="{Binding Id}" Click="OnUnsubscribe" Margin="0,0,8,0"
+                         Tag="{Binding Id}" Click="OnUnsubscribe" Margin="0,0,8,8"
                          ToolTip="Subscribed — click to unsubscribe"
                          Visibility="{Binding DataContext.DetailSubscribed, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVis}}" />
-              <ui:Button Content="Download" Icon="{ui:SymbolIcon ArrowDownload24}" Tag="{Binding Id}" Click="OnDownload" Margin="0,0,8,0"
-                         ToolTip="Download via steamcmd (configure steamcmd to enable)"
-                         IsEnabled="{Binding DataContext.SteamCmdConfigured, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}}" />
-              <ui:Button Content="Enable for target" Tag="{Binding Id}" Click="OnInstallForTarget" Margin="0,0,8,0"
-                         Appearance="Primary" ToolTip="Enable this downloaded mod for the selected server instance and copy its public keys" />
-              <ui:DropDownButton Content="Open" Icon="{ui:SymbolIcon Open24}" ToolTip="Open…">
+              <ui:Button Content="Install" Icon="{ui:SymbolIcon ArrowDownload24}" Tag="{Binding Id}" Click="OnDownload" Margin="0,0,8,8"
+                         ToolTip="Install locally via steamcmd (configure steamcmd to enable)"
+                         IsEnabled="{Binding DataContext.SteamCmdConfigured, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}}"
+                         Visibility="{Binding DataContext.DetailDownloaded, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource InverseBoolToVis}}" />
+              <ui:Button Content="Update" Icon="{ui:SymbolIcon ArrowSync24}" Tag="{Binding Id}" Click="OnDownload" Margin="0,0,8,8"
+                         ToolTip="Check and update the local Workshop files via steamcmd"
+                         IsEnabled="{Binding DataContext.SteamCmdConfigured, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}}"
+                         Visibility="{Binding DataContext.DetailDownloaded, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVis}}" />
+              <ui:Button Content="Install for target" Icon="{ui:SymbolIcon ArrowDownload24}" Tag="{Binding Id}"
+                         Click="OnInstallForTarget" Margin="0,0,8,8" Appearance="Primary"
+                         ToolTip="Install this downloaded mod in the selected server's loadout and copy its public keys"
+                         IsEnabled="{Binding DataContext.DetailDownloaded, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}}"
+                         Visibility="{Binding DataContext.DetailEnabledForTarget, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource InverseBoolToVis}}" />
+              <ui:Button Content="Uninstall from target" Icon="{ui:SymbolIcon Checkmark24}" Tag="{Binding Id}"
+                         Click="OnUninstallFromTarget" Margin="0,0,8,8" Appearance="Danger"
+                         ToolTip="Selected for this target — click to remove it from the server loadout; shared files are kept"
+                         Visibility="{Binding DataContext.DetailEnabledForTarget, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVis}}" />
+              <ui:DropDownButton Content="Open" Icon="{ui:SymbolIcon Open24}" ToolTip="Open…" Margin="0,0,0,8">
                 <ui:DropDownButton.Flyout>
                   <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                     <MenuItem Header="Open in Steam (client)" Tag="{Binding Id}" Click="OnOpenInSteam">
@@ -287,7 +335,7 @@
                   </ContextMenu>
                 </ui:DropDownButton.Flyout>
               </ui:DropDownButton>
-            </StackPanel>
+            </WrapPanel>
             <TextBlock Text="{Binding Description}" TextWrapping="Wrap" FontSize="12"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
           </StackPanel>
@@ -311,7 +359,7 @@
                       <TextBlock Text="{Binding Name}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
                       <TextBlock Text="{Binding Id}" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                     </StackPanel>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <WrapPanel Grid.Column="1" VerticalAlignment="Center">
                       <ui:DropDownButton Icon="{ui:SymbolIcon Open24}" ToolTip="Open…" Margin="0,0,8,0">
                         <ui:DropDownButton.Flyout>
                           <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
@@ -330,12 +378,12 @@
                           </ContextMenu>
                         </ui:DropDownButton.Flyout>
                       </ui:DropDownButton>
-                      <ui:Button Icon="{ui:SymbolIcon ArrowDownload24}" ToolTip="Update via steamcmd" Tag="{Binding Id}" Click="OnDownload" Margin="0,0,8,0"
+                      <ui:Button Content="Update" Icon="{ui:SymbolIcon ArrowSync24}" ToolTip="Update via steamcmd" Tag="{Binding Id}" Click="OnDownload" Margin="0,0,8,0"
                                  IsEnabled="{Binding DataContext.SteamCmdConfigured, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}}" />
-                      <ui:Button Content="Enable" ToolTip="Enable for the selected server instance" Tag="{Binding Id}"
+                      <ui:Button Content="Install for target" ToolTip="Install for the selected server instance" Tag="{Binding Id}"
                                  Click="OnInstallForTarget" Margin="0,0,8,0" Appearance="Primary" />
-                      <ui:Button Icon="{ui:SymbolIcon LinkDismiss24}" Appearance="Danger" ToolTip="Unsubscribe" Tag="{Binding Id}" Click="OnUnsubscribe" />
-                    </StackPanel>
+                      <ui:Button Content="Unsubscribe" Icon="{ui:SymbolIcon LinkDismiss24}" Appearance="Danger" ToolTip="Unsubscribe" Tag="{Binding Id}" Click="OnUnsubscribe" />
+                    </WrapPanel>
                   </Grid>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
@@ -371,7 +419,7 @@
                         <TextBlock Text="{Binding Name}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
                         <TextBlock Text="{Binding Id}" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                       </StackPanel>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                      <WrapPanel Grid.Column="1" VerticalAlignment="Center">
                         <ui:DropDownButton Icon="{ui:SymbolIcon Open24}" ToolTip="Open…" Margin="0,0,8,0">
                           <ui:DropDownButton.Flyout>
                             <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
@@ -390,12 +438,12 @@
                             </ContextMenu>
                           </ui:DropDownButton.Flyout>
                         </ui:DropDownButton>
-                        <ui:Button Icon="{ui:SymbolIcon ArrowSync24}" ToolTip="Update (re-download via steamcmd)" Tag="{Binding Id}" Click="OnDownload" Margin="0,0,8,0"
+                        <ui:Button Content="Update" Icon="{ui:SymbolIcon ArrowSync24}" ToolTip="Update (re-download via steamcmd)" Tag="{Binding Id}" Click="OnDownload" Margin="0,0,8,0"
                                    IsEnabled="{Binding DataContext.SteamCmdConfigured, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}}" />
-                        <ui:Button Content="Enable" ToolTip="Enable for the selected server instance" Tag="{Binding Id}"
+                        <ui:Button Content="Install for target" ToolTip="Install for the selected server instance" Tag="{Binding Id}"
                                    Click="OnInstallForTarget" Margin="0,0,8,0" Appearance="Primary" />
-                        <ui:Button Icon="{ui:SymbolIcon Delete24}" Appearance="Danger" ToolTip="Delete (remove the downloaded files)" Tag="{Binding Id}" Click="OnDeleteDownloaded" />
-                      </StackPanel>
+                        <ui:Button Content="Uninstall files" Icon="{ui:SymbolIcon Delete24}" Appearance="Danger" ToolTip="Uninstall the downloaded files" Tag="{Binding Id}" Click="OnDeleteDownloaded" />
+                      </WrapPanel>
                     </Grid>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>

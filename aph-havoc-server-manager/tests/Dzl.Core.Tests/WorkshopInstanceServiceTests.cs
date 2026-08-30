@@ -29,4 +29,38 @@ public class WorkshopInstanceServiceTests
         File.Exists(Path.Combine(Profiles.InstanceDir("default", configPath), "keys", "demo.bikey")).Should().BeTrue();
         File.Exists(Path.Combine(Profiles.InstanceDir("default", configPath), "keys", "demo.biprivatekey")).Should().BeFalse();
     }
+
+    [Fact]
+    public void Disables_mod_for_selected_instance_without_deleting_shared_download()
+    {
+        var root = Directory.CreateTempSubdirectory().FullName;
+        var configPath = Path.Combine(root, "config.json");
+        GlobalStore.Save(new GlobalConfig { ProjectsRoot = Path.Combine(root, "projects") }, configPath);
+        Profiles.EnsureDefault(configPath);
+        var mod = Path.Combine(root, "workshop", "123456789");
+        Directory.CreateDirectory(mod);
+        WorkshopInstanceService.EnableForInstance(configPath, "default", "123456789", mod, copyKeys: false)
+            .Ok.Should().BeTrue();
+
+        var result = WorkshopInstanceService.DisableForInstance(configPath, "default", "123456789");
+
+        result.Ok.Should().BeTrue();
+        Profiles.Load("default", configPath).Mods.Should().NotContain(m =>
+            WorkshopInstanceService.TryWorkshopId(m.Path) == "123456789");
+        Directory.Exists(mod).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Disabling_an_item_that_is_not_enabled_is_idempotent()
+    {
+        var root = Directory.CreateTempSubdirectory().FullName;
+        var configPath = Path.Combine(root, "config.json");
+        GlobalStore.Save(new GlobalConfig { ProjectsRoot = Path.Combine(root, "projects") }, configPath);
+        Profiles.EnsureDefault(configPath);
+
+        var result = WorkshopInstanceService.DisableForInstance(configPath, "default", "123456789");
+
+        result.Ok.Should().BeTrue();
+        result.Message.Should().Contain("already uninstalled");
+    }
 }
